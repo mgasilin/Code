@@ -1,70 +1,74 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, OneToMany } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, JoinColumn, OneToMany, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 import { Platoon } from './platoon.entity';
 import { RefreshToken } from './refresh-token.entity';
+import { ApiProperty } from '@nestjs/swagger';
+
+export enum UserRole {
+  STUDENT = 'student',
+  TEACHER = 'teacher'
+}
 
 @Entity('users')
 export class User {
+  @ApiProperty({ example: 1, description: 'Уникальный идентификатор пользователя' })
   @PrimaryGeneratedColumn()
-  id!: number;
+  id: number;
 
-  @Column({ name: 'ldap_uid', nullable: true, unique: true })
-  ldapUid!: string;
+  @ApiProperty({ example: 'ivanov_ii', description: 'LDAP идентификатор', nullable: true })
+  @Column({ name: 'ldap_uid', unique: true, nullable: true })
+  ldapUid: string;
 
-  @Column({ name: 'phone_number', nullable: true, unique: true })
-  phoneNumber!: string;
+  @ApiProperty({ example: '+79001234567', description: 'Номер телефона' })
+  @Column({ name: 'phone_number', unique: true, nullable: true })
+  phoneNumber: string;
 
   @Column({ name: 'password_hash', nullable: true })
-  password_hash!: string;
+  passwordHash: string;
 
+  @ApiProperty({ example: 'Иван', description: 'Имя пользователя' })
   @Column({ name: 'first_name' })
-  firstName!: string;
+  firstName: string;
 
+  @ApiProperty({ example: 'Иванов', description: 'Фамилия пользователя' })
   @Column({ name: 'last_name' })
-  lastName!: string;
+  lastName: string;
 
+  @ApiProperty({ example: 'Иванович', description: 'Отчество', nullable: true })
   @Column({ nullable: true })
-  patronymic!: string;
+  patronymic: string;
 
-  @Column({ nullable: true, unique: true })
-  email!: string;
+  @ApiProperty({ example: 'ivanov@vuc.local', description: 'Email адрес' })
+  @Column({ unique: true, nullable: true })
+  email: string;
+
+  @ApiProperty({ enum: UserRole, example: UserRole.STUDENT, description: 'Роль пользователя' })
+  @Column({ type: 'enum', enum: UserRole })
+  role: UserRole;
+
+  @ApiProperty({ example: '101A', description: 'ID взвода', nullable: true })
+  @ManyToOne(() => Platoon, { nullable: true })
+  @JoinColumn({ name: 'platoon_id' })
+  platoon: Platoon;
 
   @Column({ name: 'platoon_id', nullable: true })
-  platoonId!: string;
+  platoonId: string;
 
-  @ManyToOne(() => Platoon, platoon => platoon.users)
-  @JoinColumn({ name: 'platoon_id' })
-  platoon!: Platoon;
+  @ApiProperty({ example: '2025-01-01T00:00:00.000Z', description: 'Дата последнего входа' })
+  @Column({ name: 'last_login_at', type: 'timestamp', nullable: true })
+  lastLoginAt: Date;
 
-  @Column({ name: 'last_login_at', nullable: true })
-  lastLoginAt!: Date;
-
-  @CreateDateColumn({ name: 'created_at' })
-  createdAt!: Date;
-
-  @UpdateDateColumn({ name: 'updated_at' })
-  updatedAt!: Date;
-
+  @ApiProperty({ example: true, description: 'Флаг активности' })
   @Column({ name: 'is_active', default: true })
-  isActive!: boolean;
+  isActive: boolean;
 
-  @Column({ 
-    type: 'varchar',
-    enum: ['student', 'teacher']
-  })
-  role!: 'student' | 'teacher';
+  @ApiProperty({ example: '2025-01-01T00:00:00.000Z', description: 'Дата создания' })
+  @CreateDateColumn({ name: 'created_at' })
+  createdAt: Date;
+
+  @ApiProperty({ example: '2025-01-01T00:00:00.000Z', description: 'Дата обновления' })
+  @UpdateDateColumn({ name: 'updated_at' })
+  updatedAt: Date;
 
   @OneToMany(() => RefreshToken, refreshToken => refreshToken.user)
-  refreshTokens!: RefreshToken[];
-
-  async checkPassword(password: string): Promise<boolean> {
-    if (!this.password_hash) return false;
-    const bcrypt = require('bcryptjs');
-    return bcrypt.compare(password, this.password_hash);
-  }
-
-  async setPassword(password: string): Promise<void> {
-    const bcrypt = require('bcryptjs');
-    const rounds = parseInt(process.env.BCRYPT_ROUNDS || '12');
-    this.password_hash = await bcrypt.hash(password, rounds);
-  }
+  refreshTokens: RefreshToken[];
 }

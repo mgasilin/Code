@@ -1,26 +1,50 @@
-import 'reflect-metadata';
-import app from './app';
-import { AppDataSource } from '../ormconfig';
-import { setupSwagger } from './config/swagger-auto';
+import { NestFactory } from '@nestjs/core';
+import { ValidationPipe } from '@nestjs/common';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { AppModule } from './app.module';
 
-const PORT = process.env.PORT || 3000;
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
 
-const startServer = async (): Promise<void> => {
-  try {
-    await AppDataSource.initialize();
-    console.log('Database connected successfully');
+  // Глобальная валидация
+  app.useGlobalPipes(new ValidationPipe({
+    whitelist: true,
+    forbidNonWhitelisted: true,
+    transform: true,
+  }));
 
-    // Автоматическая настройка Swagger
-    setupSwagger(app);
+  // CORS
+  app.enableCors({
+    origin: process.env.CLIENT_URL || 'http://localhost:3001',
+    credentials: true,
+  });
 
-    app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
-      console.log(`Swagger docs: http://localhost:${PORT}/api-docs`);
-    });
-  } catch (error) {
-    console.error('Failed to start server:', error);
-    process.exit(1);
-  }
-};
+  // Swagger документация
+  const config = new DocumentBuilder()
+    .setTitle('UMK Backend API')
+    .setDescription('REST API для учебно-методического комплекса Военного учебного центра')
+    .setVersion('1.0.0')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        description: 'JWT access token'
+      },
+      'BearerAuth',
+    )
+    .build();
 
-startServer();
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api/docs', app, document);
+
+  app.setGlobalPrefix('api/v1');
+
+  const port = process.env.PORT || 3000;
+  await app.listen(port);
+  
+  console.log(`Application is running on: http://localhost:${port}`);
+  console.log(`Swagger documentation: http://localhost:${port}/api/docs`);
+  console.log(`Environment: ${process.env.NODE_ENV}`);
+}
+bootstrap();
