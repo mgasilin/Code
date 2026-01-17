@@ -4,7 +4,7 @@ import { Discipline } from './discipline.entity';
 import { Platoon } from './platoon.entity';
 import { User } from './user.entity';
 
-@Entity('cources')  // ВАЖНО: имя таблицы 'cources' (с опечаткой как в БД)
+@Entity('cources')  
 export class Course {
   @ApiProperty({ example: 1, description: 'Уникальный идентификатор курса' })
   @PrimaryGeneratedColumn()

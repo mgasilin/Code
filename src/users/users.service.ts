@@ -46,7 +46,6 @@ export class UsersService {
       order: { id: 'ASC' },
     });
 
-    // Преобразуем в DTO
     const usersDto = users.map(user => this.toUserResponseDto(user));
 
     return {

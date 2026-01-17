@@ -11,7 +11,7 @@ export class Discipline {
   id: number;
 
   @ApiProperty({ example: 1, description: 'ID курса' })
-  @Column({ name: 'cource_id' })  // ВАЖНО: 'cource_id' (с опечаткой как в БД)
+  @Column({ name: 'cource_id' }) 
   courseId: number;
 
   @ApiProperty({ example: 'Базы данных', description: 'Название дисциплины' })
@@ -44,7 +44,7 @@ export class Discipline {
   updatedAt: Date;
 
   @ManyToOne(() => Course, course => course.disciplines)
-  @JoinColumn({ name: 'cource_id' })  // ВАЖНО: 'cource_id'
+  @JoinColumn({ name: 'cource_id' }) 
   course: Course;
 
   @OneToMany(() => Lesson, lesson => lesson.discipline)

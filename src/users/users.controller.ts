@@ -30,7 +30,7 @@ export class UsersController {
       limit: query.limit,
       role: query.role,
       platoonId: query.platoon_id,
-      isActive: query.is_active, // просто передаем boolean
+      isActive: query.is_active, 
     });
   }
 
@@ -41,7 +41,6 @@ export class UsersController {
   @ApiResponse({ status: 403, description: 'Доступ запрещен. Можно просматривать только свой профиль' })
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
   async findOne(@Param('id') id: number, @AuthUser() currentUser: any): Promise<UserResponseDto> {
-    // Проверяем, что пользователь запрашивает свой профиль или имеет роль преподавателя
     if (currentUser.id !== id && currentUser.role !== UserRole.TEACHER) {
       throw new Error('Доступ запрещен. Можно просматривать только свой профиль');
     }

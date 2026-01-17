@@ -14,7 +14,7 @@ interface FindAllOptions {
   limit: number;
   yearOfStudy?: number;
   isActive?: boolean;
-  courseId?: number; // НОВОЕ: фильтр по курсу
+  courseId?: number; 
 }
 
 @Injectable()
@@ -22,7 +22,7 @@ export class PlatoonsService {
   constructor(
     @InjectRepository(Platoon)
     private platoonsRepository: Repository<Platoon>,
-    @InjectRepository(Course) // НОВОЕ: добавляем репозиторий Course
+    @InjectRepository(Course)
     private coursesRepository: Repository<Course>,
   ) {}
 
@@ -40,14 +40,13 @@ export class PlatoonsService {
       where.isActive = isActive;
     }
 
-    // НОВОЕ: фильтр по курсу
     if (courseId !== undefined) {
       where.courseId = courseId;
     }
 
     const [platoons, total] = await this.platoonsRepository.findAndCount({
       where,
-      relations: ['course'], // НОВОЕ: загружаем курс
+      relations: ['course'], 
       skip,
       take: limit,
       order: { id: 'ASC' },
@@ -64,7 +63,6 @@ export class PlatoonsService {
   }
 
   async create(createPlatoonDto: CreatePlatoonDto): Promise<PlatoonResponseDto> {
-    // Проверяем, существует ли уже взвод с таким ID
     const existingPlatoon = await this.platoonsRepository.findOne({
       where: { id: createPlatoonDto.id },
     });
@@ -73,7 +71,6 @@ export class PlatoonsService {
       throw new ConflictException('Взвод с таким ID уже существует');
     }
 
-    // НОВОЕ: Проверяем существование курса, если указан
     let course: Course | undefined;
     if (createPlatoonDto.course_id) {
       course = await this.coursesRepository.findOne({
@@ -85,7 +82,6 @@ export class PlatoonsService {
       }
     }
 
-    // Создаем новый взвод
     const platoon = this.platoonsRepository.create({
       id: createPlatoonDto.id,
       yearOfStudy: createPlatoonDto.year_of_study,
@@ -96,7 +92,6 @@ export class PlatoonsService {
 
     const savedPlatoon = await this.platoonsRepository.save(platoon);
     
-    // Загружаем с relations для возврата
     const platoonWithCourse = await this.platoonsRepository.findOne({
       where: { id: savedPlatoon.id },
       relations: ['course'],
@@ -106,7 +101,6 @@ export class PlatoonsService {
   }
 
   async update(id: string, updatePlatoonDto: UpdatePlatoonDto): Promise<PlatoonResponseDto> {
-    // Находим взвод
     const platoon = await this.platoonsRepository.findOne({
       where: { id },
       relations: ['course'],
@@ -116,7 +110,6 @@ export class PlatoonsService {
       throw new NotFoundException('Взвод не найден');
     }
 
-    // НОВОЕ: Проверяем существование курса, если указан
     if (updatePlatoonDto.course_id !== undefined) {
       if (updatePlatoonDto.course_id === null) {
         platoon.courseId = null;
@@ -135,7 +128,6 @@ export class PlatoonsService {
       }
     }
 
-    // Обновляем остальные поля
     if (updatePlatoonDto.year_of_study !== undefined) {
       platoon.yearOfStudy = updatePlatoonDto.year_of_study;
     }
@@ -155,7 +147,7 @@ export class PlatoonsService {
   async findOne(id: string): Promise<Platoon | null> {
     return this.platoonsRepository.findOne({
       where: { id },
-      relations: ['course'], // НОВОЕ: загружаем курс
+      relations: ['course'], 
     });
   }
 
