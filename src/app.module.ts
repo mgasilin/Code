@@ -3,8 +3,12 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { PlatoonsModule } from './platoons/platoons.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
+import { CoursesModule } from './courses/courses.module';
+import { DisciplinesModule } from './disciplines/disciplines.module';
+import { LessonsModule } from './lessons/lessons.module';
 import { ormConfig } from './config/ormconfig';
 import configuration from './config/configuration';
 
@@ -18,6 +22,10 @@ import configuration from './config/configuration';
     TypeOrmModule.forRoot(ormConfig),
     AuthModule,
     UsersModule,
+    PlatoonsModule,
+    CoursesModule,
+    DisciplinesModule,
+    LessonsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

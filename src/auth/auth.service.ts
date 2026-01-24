@@ -29,7 +29,6 @@ export class AuthService {
   async register(registerDto: RegisterDto) {
     const { phone_number, password, first_name, last_name, platoon_id, ...userData } = registerDto;
 
-    // Проверка существования пользователя
     const existingUser = await this.usersRepository.findOne({
       where: [{ phoneNumber: phone_number }],
     });
@@ -38,10 +37,8 @@ export class AuthService {
       throw new ConflictException('Пользователь уже существует');
     }
 
-    // Хеширование пароля
     const passwordHash = await bcrypt.hash(password, this.bcryptRounds);
 
-    // Создание пользователя - преобразуем snake_case в camelCase
     const user = this.usersRepository.create({
       phoneNumber: phone_number,
       passwordHash,
@@ -53,7 +50,6 @@ export class AuthService {
 
     const savedUser = await this.usersRepository.save(user);
 
-    // Генерация токенов
     const tokens = await this.generateTokens(savedUser);
 
     return {
@@ -66,10 +62,8 @@ export class AuthService {
     let user: User;
 
     if (loginDto.phone_number) {
-      // Аутентификация по телефону
       user = await this.validatePhoneUser(loginDto.phone_number, loginDto.password);
     } else if (loginDto.ldap_username) {
-      // Аутентификация через LDAP
       user = await this.validateLdapUser(loginDto.ldap_username, loginDto.ldap_password);
     } else {
       throw new BadRequestException('Не указаны учетные данные');
@@ -79,11 +73,9 @@ export class AuthService {
       throw new UnauthorizedException('Неверные учетные данные');
     }
 
-    // Обновление времени последнего входа
     user.lastLoginAt = new Date();
     await this.usersRepository.save(user);
 
-    // Генерация токенов
     const tokens = await this.generateTokens(user);
 
     return {
@@ -104,7 +96,6 @@ export class AuthService {
 
     const tokens = await this.generateTokens(tokenEntity.user);
 
-    // Отзываем старый refresh токен
     tokenEntity.revokedAt = new Date();
     await this.refreshTokensRepository.save(tokenEntity);
 
@@ -137,7 +128,6 @@ export class AuthService {
   }
 
   private async validateLdapUser(ldapUsername: string, ldapPassword: string): Promise<User> {
-    // TODO: Реализовать интеграцию с LDAP
     const user = await this.usersRepository.findOne({
       where: { ldapUid: ldapUsername, isActive: true },
     });
@@ -171,7 +161,6 @@ export class AuthService {
       expiresIn: this.configService.get<string>('jwt.refreshExpiresIn'),
     });
 
-    // Сохраняем refresh токен в БД
     const refreshTokenEntity = this.refreshTokensRepository.create({
       user,
       token: refreshToken,

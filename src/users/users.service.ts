@@ -1,7 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, FindOptionsWhere, Like } from 'typeorm';
+import { Repository, FindOptionsWhere } from 'typeorm';
 import { User, UserRole } from '../entities/user.entity';
+import { UserResponseDto } from './dto/user-response';
+import { UsersResponseDto } from './dto/users-response';
 
 interface FindAllOptions {
   page: number;
@@ -18,7 +20,7 @@ export class UsersService {
     private usersRepository: Repository<User>,
   ) {}
 
-  async findAll(options: FindAllOptions) {
+  async findAll(options: FindAllOptions): Promise<UsersResponseDto> {
     const { page, limit, role, platoonId, isActive } = options;
     const skip = (page - 1) * limit;
 
@@ -44,14 +46,10 @@ export class UsersService {
       order: { id: 'ASC' },
     });
 
-    // Исключаем passwordHash из ответа
-    const usersWithoutPassword = users.map(user => {
-      const { passwordHash, ...userWithoutPassword } = user;
-      return userWithoutPassword;
-    });
+    const usersDto = users.map(user => this.toUserResponseDto(user));
 
     return {
-      data: usersWithoutPassword,
+      data: usersDto,
       total,
       page,
       limit,
@@ -59,7 +57,7 @@ export class UsersService {
     };
   }
 
-  async findOne(id: number): Promise<Partial<User>> {
+  async findOne(id: number): Promise<UserResponseDto> {
     const user = await this.usersRepository.findOne({
       where: { id },
       relations: ['platoon'],
@@ -69,9 +67,7 @@ export class UsersService {
       throw new NotFoundException('Пользователь не найден');
     }
 
-    // Исключаем passwordHash из ответа
-    const { passwordHash, ...userWithoutPassword } = user;
-    return userWithoutPassword;
+    return this.toUserResponseDto(user);
   }
 
   async findByPhone(phoneNumber: string): Promise<User> {
@@ -84,5 +80,29 @@ export class UsersService {
     return this.usersRepository.findOne({
       where: { ldapUid },
     });
+  }
+
+  private toUserResponseDto(user: User): UserResponseDto {
+    return {
+      id: user.id,
+      ldap_uid: user.ldapUid,
+      phone_number: user.phoneNumber,
+      first_name: user.firstName,
+      last_name: user.lastName,
+      patronymic: user.patronymic,
+      email: user.email,
+      role: user.role,
+      platoon: user.platoon ? {
+        id: user.platoon.id,
+        year_of_study: user.platoon.yearOfStudy,
+        description: user.platoon.description,
+        is_active: user.platoon.isActive,
+        created_at: user.platoon.createdAt,
+      } : undefined,
+      last_login_at: user.lastLoginAt,
+      is_active: user.isActive,
+      created_at: user.createdAt,
+      updated_at: user.updatedAt,
+    };
   }
 }
