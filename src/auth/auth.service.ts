@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException, ConflictException, BadRequestExcepti
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { AuthType } from './dto/login.dto';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { User, UserRole } from '../entities/user.entity';
@@ -61,12 +62,19 @@ export class AuthService {
   async login(loginDto: LoginDto) {
     let user: User;
 
-    if (loginDto.phone_number) {
-      user = await this.validatePhoneUser(loginDto.phone_number, loginDto.password);
-    } else if (loginDto.ldap_username) {
-      user = await this.validateLdapUser(loginDto.ldap_username, loginDto.ldap_password);
+    if (loginDto.auth_type === AuthType.STUDENT) {
+      user = await this.validateStudentUser(
+        loginDto.last_name,
+        loginDto.initials,
+        loginDto.password
+      );
+    } else if (loginDto.auth_type === AuthType.ADMIN) {
+      user = await this.validateAdminUser(
+        loginDto.last_name,
+        loginDto.password
+      );
     } else {
-      throw new BadRequestException('Не указаны учетные данные');
+      throw new BadRequestException('Не указан тип авторизации');
     }
 
     if (!user) {
@@ -82,6 +90,39 @@ export class AuthService {
       user: this.excludePassword(user),
       ...tokens,
     };
+  }
+
+  private async validateStudentUser(lastName: string, initials: string, password: string): Promise<User> {
+    const user = await this.usersRepository.findOne({
+      where: {
+        lastName,
+        initials,
+        role: UserRole.STUDENT,
+        isActive: true
+      },
+    });
+
+    if (user && user.passwordHash && await bcrypt.compare(password, user.passwordHash)) {
+      return user;
+    }
+
+    return null;
+  }
+
+  private async validateAdminUser(lastName: string, password: string): Promise<User> {
+    const user = await this.usersRepository.findOne({
+      where: {
+        lastName,
+        role: UserRole.ADMIN,
+        isActive: true
+      },
+    });
+
+    if (user && user.passwordHash && await bcrypt.compare(password, user.passwordHash)) {
+      return user;
+    }
+
+    return null;
   }
 
   async refreshToken(refreshToken: string) {

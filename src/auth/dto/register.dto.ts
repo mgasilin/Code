@@ -7,20 +7,22 @@ import {
   MinLength, 
   MaxLength, 
   Matches,
-  IsPhoneNumber 
+  Length
 } from 'class-validator';
 import { UserRole } from '../../entities/user.entity';
 
 export class RegisterDto {
   @ApiProperty({ 
     example: '+79160738442', 
-    description: 'Номер телефона' 
+    description: 'Номер телефона',
+    required: false
   })
+  @IsOptional()
   @IsString()
   @Matches(/^\+7\d{10}$/, { 
     message: 'Номер телефона должен быть в формате +7XXXXXXXXXX' 
   })
-  phone_number: string;
+  phone_number?: string;
 
   @ApiProperty({ 
     example: '1234567890', 
@@ -60,6 +62,16 @@ export class RegisterDto {
   patronymic?: string;
 
   @ApiProperty({ 
+    example: 'МГ', 
+    description: 'Инициалы',
+    required: false
+  })
+  @IsOptional()
+  @IsString()
+  @Length(2, 10, { message: 'Инициалы должны быть от 2 до 10 символов' })
+  initials?: string;
+
+  @ApiProperty({ 
     example: 'maksim.gasilin05@gmail.com', 
     description: 'Email',
     required: false
@@ -73,7 +85,7 @@ export class RegisterDto {
     example: UserRole.STUDENT, 
     description: 'Роль пользователя' 
   })
-  @IsEnum(UserRole, { message: 'Роль должна быть student или teacher' })
+  @IsEnum(UserRole, { message: 'Роль должна быть student, teacher или admin' })
   role: UserRole;
 
   @ApiProperty({ 

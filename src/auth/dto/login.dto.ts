@@ -1,25 +1,43 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, Matches, IsOptional, ValidateIf } from 'class-validator';
+import { IsString, IsEnum, ValidateIf, IsNotEmpty } from 'class-validator';
+
+export enum AuthType {
+  ADMIN = 'admin',
+  STUDENT = 'student'
+}
 
 export class LoginDto {
-  @ApiProperty({ example: '+79001234567', required: false })
-  @ValidateIf(o => !o.ldap_username)
-  @IsString()
-  @Matches(/^\+7\d{10}$/, { message: 'Phone number must match format +7XXXXXXXXXX' })
-  phone_number?: string;
+  @ApiProperty({ 
+    enum: AuthType, 
+    example: AuthType.STUDENT, 
+    description: 'Тип авторизации' 
+  })
+  @IsEnum(AuthType, { message: 'Тип авторизации должен быть admin или student' })
+  auth_type: AuthType;
 
-  @ApiProperty({ example: 'password123', required: false })
-  @ValidateIf(o => o.phone_number)
+  @ApiProperty({ 
+    example: 'Иванов', 
+    description: 'Фамилия пользователя' 
+  })
   @IsString()
-  password?: string;
+  @IsNotEmpty({ message: 'Фамилия обязательна' })
+  last_name: string;
 
-  @ApiProperty({ example: 'ivanov_ii', required: false })
-  @ValidateIf(o => !o.phone_number)
+  @ApiProperty({ 
+    example: 'АБ', 
+    description: 'Инициалы (только для student)',
+    required: false
+  })
+  @ValidateIf(o => o.auth_type === AuthType.STUDENT)
   @IsString()
-  ldap_username?: string;
+  @IsNotEmpty({ message: 'Инициалы обязательны для типа student' })
+  initials?: string;
 
-  @ApiProperty({ example: 'ldapPassword', required: false })
-  @ValidateIf(o => o.ldap_username)
+  @ApiProperty({ 
+    example: 'password123', 
+    description: 'Пароль' 
+  })
   @IsString()
-  ldap_password?: string;
+  @IsNotEmpty({ message: 'Пароль обязателен' })
+  password: string;
 }

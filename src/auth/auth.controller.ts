@@ -21,38 +21,41 @@ export class AuthController {
     return this.authService.register(registerDto);
   }
 
-  @Public()
-  @Post('login')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Универсальный вход (phone или LDAP)' })
-  @ApiBody({
-    description: 'Учетные данные для входа',
-    schema: {
-      oneOf: [
-        {
-          type: 'object',
-          required: ['phone_number', 'password'],
-          properties: {
-            phone_number: { type: 'string', example: '+79001234567' },
-            password: { type: 'string', example: 'password123' },
-          },
+@Public()
+@Post('login')
+@HttpCode(HttpStatus.OK)
+@ApiOperation({ summary: 'Универсальный вход (student или admin)' })
+@ApiBody({
+  description: 'Учетные данные для входа',
+  schema: {
+    oneOf: [
+      {
+        type: 'object',
+        required: ['auth_type', 'last_name', 'initials', 'password'],
+        properties: {
+          auth_type: { type: 'string', enum: ['student'], example: 'student' },
+          last_name: { type: 'string', example: 'Иванов' },
+          initials: { type: 'string', example: 'ИИ' },
+          password: { type: 'string', example: 'password123' },
         },
-        {
-          type: 'object',
-          required: ['ldap_username', 'ldap_password'],
-          properties: {
-            ldap_username: { type: 'string', example: 'ivanov_ii' },
-            ldap_password: { type: 'string', example: 'ldapPassword' },
-          },
+      },
+      {
+        type: 'object',
+        required: ['auth_type', 'last_name', 'password'],
+        properties: {
+          auth_type: { type: 'string', enum: ['admin'], example: 'admin' },
+          last_name: { type: 'string', example: 'Петров' },
+          password: { type: 'string', example: 'admin123' },
         },
-      ],
-    },
-  })
-  @ApiResponse({ status: 200, description: 'Успешный вход' })
-  @ApiResponse({ status: 401, description: 'Неверные учетные данные' })
-  async login(@Body() loginDto: LoginDto) {
-    return this.authService.login(loginDto);
-  }
+      },
+    ],
+  },
+})
+@ApiResponse({ status: 200, description: 'Успешный вход' })
+@ApiResponse({ status: 401, description: 'Неверные учетные данные' })
+async login(@Body() loginDto: LoginDto) {
+  return this.authService.login(loginDto);
+}
 
   @Public()
   @Post('refresh')
