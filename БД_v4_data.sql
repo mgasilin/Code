@@ -116,7 +116,7 @@ BEGIN
     INSERT INTO lessons (discipline_id, name, order_number, description, lesson_type, created_by) VALUES
     (p_discipline_id, 'Итоговый тест по ' || p_discipline_name, 4, 
      'Контрольное тестирование по пройденному материалу дисциплины ' || p_discipline_name || '.', 
-     'test', p_teacher_id);
+     'group', p_teacher_id);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -139,186 +139,74 @@ SELECT create_lessons_for_discipline(12, 2, 'ВСП ЗИТ');
 -- Удаляем временную функцию
 DROP FUNCTION create_lessons_for_discipline(INTEGER, INTEGER, VARCHAR);
 
--- ============================================================================
--- 6. СОЗДАНИЕ УЧЕБНЫХ МАТЕРИАЛОВ
--- ============================================================================
 
--- Функция для создания материалов для занятия
-CREATE OR REPLACE FUNCTION create_materials_for_lesson(
-    p_lesson_id INTEGER,
-    p_teacher_id INTEGER,
-    p_lesson_name VARCHAR,
-    p_discipline_name VARCHAR
-) RETURNS VOID AS $$
-DECLARE
-    v_lesson_type VARCHAR;
-BEGIN
-    -- Получаем тип занятия
-    SELECT lesson_type INTO v_lesson_type FROM lessons WHERE id = p_lesson_id;
-    
-    IF v_lesson_type = 'test' THEN
-        -- Для тестового занятия создаем ссылку на тест
-        INSERT INTO materials (lesson_id, title, material_type, content, created_by) VALUES
-        (p_lesson_id, 'Ссылка на тестирование по ' || p_discipline_name, 'test_link', 
-         'Перейдите по ссылке для прохождения итогового теста по дисциплине ' || p_discipline_name, 
-         p_teacher_id);
-    ELSE
-        -- Для теоретических/практических занятий создаем материалы с уникальным контентом
-        INSERT INTO materials (lesson_id, title, material_type, content, created_by) VALUES
-        (p_lesson_id, 'Теоретический материал: ' || p_lesson_name, 'theory', 
-         '<h1>Основной теоретический материал по ' || p_discipline_name || '</h1>' ||
-         '<p>Это уникальное содержимое теоретического материала для занятия "' || p_lesson_name || 
-         '" в рамках дисциплины ' || p_discipline_name || '.</p>' ||
-         '<p>Материал включает специализированные разделы, соответствующие направлению подготовки.</p>', 
-         p_teacher_id),
-        (p_lesson_id, 'Дополнительные материалы: ' || p_lesson_name, 'file', 
-         'Файл с дополнительными материалами и примерами для занятия "' || p_lesson_name || 
-         '" по дисциплине ' || p_discipline_name, 
-         p_teacher_id);
-    END IF;
-END;
-$$ LANGUAGE plpgsql;
-
--- Создаем материалы для всех занятий
-DO $$
-DECLARE
-    lesson_record RECORD;
-    discipline_name VARCHAR;
-BEGIN
-    FOR lesson_record IN 
-        SELECT l.id, l.name as lesson_name, d.name as discipline_name 
-        FROM lessons l 
-        JOIN disciplines d ON l.discipline_id = d.id 
-        ORDER BY l.id
-    LOOP
-        PERFORM create_materials_for_lesson(
-            lesson_record.id, 
-            1, 
-            lesson_record.lesson_name,
-            lesson_record.discipline_name
-        );
-    END LOOP;
-END $$;
-
--- Удаляем временную функцию
-DROP FUNCTION create_materials_for_lesson(INTEGER, INTEGER, VARCHAR, VARCHAR);
-
--- ============================================================================
--- 7. СОЗДАНИЕ ТЕСТОВ
--- ============================================================================
-
--- Создаем тесты для тестовых занятий
-INSERT INTO tests (lesson_id, external_test_id, test_name, description, test_link, is_active)
+INSERT INTO material_texts (lesson_id, title, material_text)
 SELECT 
     l.id,
-    'EXT_TEST_' || l.id::text,
-    'Итоговый тест: ' || d.name,
-    'Итоговый контрольный тест по дисциплине ' || d.name || '. Проверка знаний и практических навыков.',
-    '/tests/' || l.id::text || '/start',
-    TRUE
+    'Теоретический материал: ' || l.name,
+    '<h1>Основной теоретический материал</h1>' ||
+    '<p>Это содержимое теоретического материала для занятия "' || l.name || 
+    '" в рамках дисциплины ' || d.name || '.</p>' ||
+    '<p>Материал включает специализированные разделы, соответствующие направлению подготовки.</p>'
 FROM lessons l
 JOIN disciplines d ON l.discipline_id = d.id
-WHERE l.lesson_type = 'test';
+
+
+INSERT INTO material_links (lesson_id, link_type, url, title, description)
+SELECT 
+    l.id,
+    CASE 
+        WHEN l.lesson_type = 'group' THEN 'test_module'
+        ELSE 'external'
+    END,
+    CASE 
+        WHEN l.lesson_type = 'group' THEN '/tests/' || l.id::text || '/start'
+        ELSE 'https://library.mil.ru/' || l.id::text
+    END,
+    CASE 
+        WHEN l.lesson_type = 'group' THEN 'Модуль тестирования: ' || l.name
+        ELSE 'Библиотека ВУЦ: ' || l.name
+    END,
+    CASE 
+        WHEN l.lesson_type = 'group' THEN 'Перейти к прохождению итогового тестирования'
+        ELSE 'Дополнительные материалы в библиотеке ВУЦ'
+    END
+FROM lessons l
+WHERE l.lesson_type IN ('theory', 'practics', 'group');
+
 
 -- ============================================================================
 -- 8. СОЗДАНИЕ ПРИКРЕПЛЕННЫХ ФАЙЛОВ
 -- ============================================================================
 
--- Добавляем прикрепленные файлы к материалам
-INSERT INTO material_attachments (material_id, file_name, file_type, file_path, file_size, uploaded_by)
+INSERT INTO material_attachments (lesson_id, file_name, file_type, file_path, file_size, uploaded_by)
 SELECT 
-    m.id,
-    CASE 
-        WHEN m.material_type = 'theory' THEN 'lecture_notes_' || m.id::text || '.pdf'
-        ELSE 'additional_materials_' || m.id::text || '.zip'
-    END as file_name,
-    CASE 
-        WHEN m.material_type = 'theory' THEN 'application/pdf'
-        ELSE 'application/zip'
-    END as file_type,
-    '/storage/materials/' || m.id::text || '/file',
+    l.id,
+    'lecture_notes_' || l.id::text || '.pdf' as file_name,
+    'application/pdf' as file_type,
+    '/storage/lessons/' || l.id::text || '/lecture.pdf',
     1048576, -- 1MB
     1
-FROM materials m
-WHERE m.material_type IN ('theory', 'file');
-
--- ============================================================================
--- 9. СОЗДАНИЕ КАЛЬКУЛЯТОРОВ ФОРМУЛ
--- ============================================================================
-
--- Калькуляторы для тестов АСО
-INSERT INTO test_calculators (lesson_id, test_id, name, description, formula_config, display_order, created_by) 
+FROM lessons l
+WHERE l.lesson_type IN ('theory', 'practics', 'group')
+UNION ALL
 SELECT 
     l.id,
-    t.id,
-    'Калькулятор систем охраны для ' || d.name,
-    'Специализированный калькулятор для расчетов параметров систем охраны',
-    '{"variables": ["coverage", "sensitivity"], "formula": "coverage * sensitivity * 0.85", "labels": {"coverage": "Зона покрытия (м²)", "sensitivity": "Чувствительность"}, "units": {"result": "индекс эффективности"}}'::jsonb,
-    1,
+    'additional_materials_' || l.id::text || '.zip' as file_name,
+    'application/zip' as file_type,
+    '/storage/lessons/' || l.id::text || '/additional.zip',
+    2097152, -- 2MB
     1
 FROM lessons l
-JOIN disciplines d ON l.discipline_id = d.id
-LEFT JOIN tests t ON t.lesson_id = l.id
-WHERE d.cource_id = (SELECT id FROM cources WHERE name = 'АСО') AND l.lesson_type = 'test';
+WHERE l.lesson_type IN ('theory', 'practics');
 
--- Калькуляторы для тестов ЗИТ
-INSERT INTO test_calculators (lesson_id, test_id, name, description, formula_config, display_order, created_by) 
-SELECT 
-    l.id,
-    t.id,
-    'Калькулятор защиты информации для ' || d.name,
-    'Специализированный калькулятор для расчетов параметров защиты информации',
-    '{"variables": ["threat_level", "protection"], "formula": "threat_level * protection / 100", "labels": {"threat_level": "Уровень угрозы", "protection": "Уровень защиты (%)"}, "units": {"result": "коэффициент безопасности"}}'::jsonb,
-    1,
-    1
-FROM lessons l
-JOIN disciplines d ON l.discipline_id = d.id
-LEFT JOIN tests t ON t.lesson_id = l.id
-WHERE d.cource_id = (SELECT id FROM cources WHERE name = 'ЗИТ') AND l.lesson_type = 'test';
 
--- ============================================================================
--- 10. НАСТРОЙКА ПРАВИЛ ВИДИМОСТИ
--- ============================================================================
-
--- Настраиваем видимость контента по взводам (связь по курсу и году обучения)
-INSERT INTO visibility_rules_lessons (lesson_id, platoon_id, is_visible, visible_from, visible_until, created_by)
-SELECT 
-    l.id,
-    p.id,
-    TRUE,
-    CURRENT_TIMESTAMP - INTERVAL '1 day',
-    CURRENT_TIMESTAMP + INTERVAL '1 year',
-    1
-FROM lessons l
-JOIN disciplines d ON l.discipline_id = d.id
-CROSS JOIN platoons p
-WHERE p.cource_id = d.cource_id 
-  AND p.year_of_study = d.year_of_study;
-
--- ============================================================================
--- 11. СОЗДАНИЕ СВЯЗЕЙ ТЕСТ-МАТЕРИАЛЫ
--- ============================================================================
-
--- Связываем подготовительные материалы с тестами (в рамках одного направления)
-INSERT INTO test_materials (lesson_id, material_id, order_number, is_required, created_by)
-SELECT 
-    test_lesson.id,
-    prep_material.id,
-    1,
-    TRUE,
-    1
-FROM lessons test_lesson
-JOIN disciplines d ON test_lesson.discipline_id = d.id
-JOIN lessons prep_lesson ON prep_lesson.discipline_id = d.id AND prep_lesson.lesson_type != 'test'
-JOIN materials prep_material ON prep_material.lesson_id = prep_lesson.id
-WHERE test_lesson.lesson_type = 'test'
-AND prep_material.material_type = 'theory';
 
 -- ============================================================================
 -- ВЫВОД СТАТИСТИКИ ПО ЗАПОЛНЕННЫМ ДАННЫМ
 -- ============================================================================
 
-SELECT 'Направления подготовки' as category, COUNT(*) as count FROM cources
+SELECT 'Направления подготовки', COUNT(*) from cources
 UNION ALL
 SELECT 'Дисциплины', COUNT(*) FROM disciplines
 UNION ALL
@@ -332,14 +220,8 @@ SELECT 'Студенты', COUNT(*) FROM users WHERE role = 'student'
 UNION ALL
 SELECT 'Занятия', COUNT(*) FROM lessons
 UNION ALL
-SELECT 'Учебные материалы', COUNT(*) FROM materials
-UNION ALL
-SELECT 'Тесты', COUNT(*) FROM tests
-UNION ALL
 SELECT 'Прикрепленные файлы', COUNT(*) FROM material_attachments
-UNION ALL
-SELECT 'Правила видимости', COUNT(*) FROM visibility_rules_lessons
-ORDER BY category;
+;
 
 -- ============================================================================
 -- ПРОВЕРКА СВЯЗЕЙ С НОВОЙ СТРУКТУРОЙ
@@ -364,28 +246,18 @@ SELECT
     d.year_of_study as year,
     l.name as lesson,
     l.lesson_type as type,
-    m.title as material,
-    m.material_type as material_type
+    COUNT(DISTINCT mt.id) as texts_count,
+    COUNT(DISTINCT ml.id) as links_count,
+    COUNT(DISTINCT ma.id) as attachments_count
 FROM cources c
 JOIN disciplines d ON d.cource_id = c.id
 JOIN lessons l ON l.discipline_id = d.id
-JOIN materials m ON m.lesson_id = l.id
-ORDER BY c.name, d.year_of_study, l.order_number, m.id;
+LEFT JOIN material_texts mt ON mt.lesson_id = l.id
+LEFT JOIN material_links ml ON ml.lesson_id = l.id
+LEFT JOIN material_attachments ma ON ma.lesson_id = l.id
+GROUP BY c.name, d.name, d.year_of_study, l.name, l.lesson_type, l.order_number
+ORDER BY c.name, d.year_of_study, l.order_number;
 
--- 3. Проверяем правила видимости с учетом направлений
-SELECT 
-    c.name as cource_name,
-    p.id as platoon_id,
-    p.year_of_study,
-    COUNT(DISTINCT vr.lesson_id) as visible_lessons,
-    STRING_AGG(DISTINCT d.name, ', ') as visible_disciplines
-FROM cources c
-JOIN platoons p ON c.id = p.cource_id
-LEFT JOIN visibility_rules_lessons vr ON p.id = vr.platoon_id
-LEFT JOIN lessons l ON vr.lesson_id = l.id
-LEFT JOIN disciplines d ON l.discipline_id = d.id
-GROUP BY c.name, p.id, p.year_of_study
-ORDER BY c.name, p.year_of_study DESC;
 
 -- ============================================================================
 -- ПРИМЕРЫ ЗАПРОСОВ С ПРИВЯЗКОЙ К НАПРАВЛЕНИЯМ
@@ -429,9 +301,6 @@ FROM materials m
 JOIN lessons l ON m.lesson_id = l.id
 JOIN disciplines d ON l.discipline_id = d.id
 JOIN cources c ON d.cource_id = c.id
-JOIN visibility_rules_lessons vr ON vr.lesson_id = l.id
-WHERE vr.platoon_id = '2402'
-  AND vr.is_visible = TRUE
 ORDER BY l.order_number, m.id;
 
 -- 4. Статистика по направлениям
@@ -448,6 +317,22 @@ LEFT JOIN disciplines d ON c.id = d.cource_id
 LEFT JOIN lessons l ON d.id = l.discipline_id
 GROUP BY c.id, c.name
 ORDER BY c.name;
+
+
+-- 5. Пример получения всех материалов для конкретного занятия
+SELECT 
+    l.name as lesson_name,
+    l.lesson_type,
+    json_build_object(
+        'texts', (SELECT json_agg(json_build_object('id', mt.id, 'title', mt.title)) 
+                  FROM material_texts mt WHERE mt.lesson_id = l.id),
+        'links', (SELECT json_agg(json_build_object('id', ml.id, 'title', ml.title, 'url', ml.url)) 
+                  FROM material_links ml WHERE ml.lesson_id = l.id),
+        'attachments', (SELECT json_agg(json_build_object('id', ma.id, 'file_name', ma.file_name)) 
+                        FROM material_attachments ma WHERE ma.lesson_id = l.id)
+    ) as materials
+FROM lessons l
+WHERE l.id = 1;
 
 -- ============================================================================
 -- КОНЕЦ СКРИПТА ЗАПОЛНЕНИЯ ДАННЫМИ
