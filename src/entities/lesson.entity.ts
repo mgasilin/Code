@@ -1,12 +1,15 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, ManyToOne, OneToMany, JoinColumn, Index } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
 import { Discipline } from './discipline.entity';
 import { User } from './user.entity';
+import { MaterialLink } from './material-link.entity';
+import { MaterialText } from './material-text.entity';
+import { MaterialAttachment } from './material-attachment.entity'; 
 
 export enum LessonType {
   THEORY = 'theory',
   PRACTICS = 'practics',
-  TEST = 'test'
+  GROUP = 'group'
 }
 
 @Entity('lessons')
@@ -60,4 +63,13 @@ export class Lesson {
   @ManyToOne(() => Discipline, discipline => discipline.lessons)
   @JoinColumn({ name: 'discipline_id' })
   discipline: Discipline;
+
+  @OneToMany(() => MaterialLink, link => link.lesson, { cascade: true })
+  links: MaterialLink[];
+
+  @OneToMany(() => MaterialText, text => text.lesson, { cascade: true })
+  texts: MaterialText[];
+
+  @OneToMany(() => MaterialAttachment, attachment => attachment.lesson, { cascade: true })
+  attachments: MaterialAttachment[];
 }

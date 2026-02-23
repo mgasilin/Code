@@ -1,6 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { LessonType } from '../../entities/lesson.entity';
 import { DisciplineResponseDto } from '../../disciplines/dto/discipline-response';
+import { LinkResponseDto } from '../../lesson-materials/dto/link-response.dto';
+import { TextResponseDto } from '../../lesson-materials/dto/text-response.dto';
+import { AttachmentResponseDto } from '../../lesson-materials/dto/attachment-response.dto';
+
 
 export class LessonResponseDto {
   @ApiProperty({ example: 1, description: 'Уникальный идентификатор занятия' })
@@ -32,4 +36,13 @@ export class LessonResponseDto {
 
   @ApiProperty({ example: '2025-01-01T00:00:00.000Z', description: 'Дата обновления' })
   updated_at: Date;
+
+  @ApiProperty({ type: [LinkResponseDto], description: 'Ссылки' })
+  links: LinkResponseDto[];
+
+  @ApiProperty({ type: [TextResponseDto], description: 'Текстовые материалы' })
+  texts: TextResponseDto[];
+
+  @ApiProperty({ type: [AttachmentResponseDto], description: 'Файлы' })
+  attachments: AttachmentResponseDto[];
 }

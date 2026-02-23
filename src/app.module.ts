@@ -9,6 +9,7 @@ import { UsersModule } from './users/users.module';
 import { CoursesModule } from './courses/courses.module';
 import { DisciplinesModule } from './disciplines/disciplines.module';
 import { LessonsModule } from './lessons/lessons.module';
+import {LessonMaterialsModule} from './lesson-materials/materials.module'
 import { ormConfig } from './config/ormconfig';
 import configuration from './config/configuration';
 
@@ -26,6 +27,7 @@ import configuration from './config/configuration';
     CoursesModule,
     DisciplinesModule,
     LessonsModule,
+    LessonMaterialsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

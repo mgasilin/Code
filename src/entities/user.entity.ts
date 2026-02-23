@@ -40,7 +40,7 @@ export class User {
 
   @ApiProperty({ example: 'ИИ', description: 'Инициалы пользователя', nullable: true })
   @Column({ length: 10, nullable: true })
-  initials: string; // Новое поле
+  initials: string;
 
   @ApiProperty({ example: 'ivanov@vuc.local', description: 'Email адрес' })
   @Column({ unique: true, nullable: true })

@@ -140,9 +140,10 @@ SELECT create_lessons_for_discipline(12, 2, 'ВСП ЗИТ');
 DROP FUNCTION create_lessons_for_discipline(INTEGER, INTEGER, VARCHAR);
 
 
-INSERT INTO material_texts (lesson_id, title, material_text)
+INSERT INTO material_texts (lesson_id, order_number, title, material_text)
 SELECT 
     l.id,
+    1,
     'Теоретический материал: ' || l.name,
     '<h1>Основной теоретический материал</h1>' ||
     '<p>Это содержимое теоретического материала для занятия "' || l.name || 
@@ -336,4 +337,4 @@ WHERE l.id = 1;
 
 -- ============================================================================
 -- КОНЕЦ СКРИПТА ЗАПОЛНЕНИЯ ДАННЫМИ
--- ============================================================================
+-- ============================================================================ 

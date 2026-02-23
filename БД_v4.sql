@@ -260,6 +260,7 @@ drop table if exists material_texts;
 
 CREATE TABLE material_texts (
     id            SERIAL PRIMARY KEY,
+    order_number  INTEGER DEFAULT 0,
     lesson_id     INTEGER NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
     title         VARCHAR(255),
     material_text TEXT,
@@ -274,6 +275,7 @@ COMMENT ON COLUMN material_texts.created_at IS 'Дата и время созд�
 
 -- Индексы для таблицы material_links
 CREATE INDEX idx_texts_material ON material_texts(lesson_id);
+CREATE INDEX idx_texts_order ON material_texts(lesson_id, order_number);
 
 
 -- ============================================================================
