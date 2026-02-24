@@ -5,6 +5,10 @@ import { RefreshToken } from '../entities/refresh-token.entity';
 import { Course } from '../entities/course.entity';
 import { Discipline } from '../entities/discipline.entity';
 import { Lesson } from '../entities/lesson.entity';
+import {MaterialLink} from '../entities/material-link.entity'
+import { MaterialText } from '../entities/material-text.entity';
+import { MaterialAttachment } from '../entities/material-attachment.entity';
+
 
 export const ormConfig: TypeOrmModuleOptions = {
   type: 'postgres',
@@ -21,6 +25,9 @@ export const ormConfig: TypeOrmModuleOptions = {
     Course,
     Discipline,
     Lesson,
+    MaterialLink,
+    MaterialText,
+    MaterialAttachment,
   ],
   synchronize: false,
   logging: true,

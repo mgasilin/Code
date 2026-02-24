@@ -46,7 +46,7 @@ export class LessonsService {
 
     const [lessons, total] = await this.lessonsRepository.findAndCount({
       where,
-      relations: ['discipline', 'discipline.course', 'createdBy'],
+      relations: ['discipline', 'discipline.course', 'createdBy', 'links', 'texts', 'attachments'],
       skip,
       take: limit,
       order: { orderNumber: 'ASC' },
@@ -107,7 +107,7 @@ export class LessonsService {
   async findOne(id: number): Promise<LessonResponseDto> {
     const lesson = await this.lessonsRepository.findOne({
       where: { id },
-      relations: ['discipline', 'discipline.course', 'createdBy'],
+      relations: ['discipline', 'discipline.course', 'createdBy', 'links', 'texts', 'attachments'],
     });
 
     if (!lesson) {
@@ -174,6 +174,37 @@ export class LessonsService {
       is_active: lesson.isActive,
       created_by: lesson.createdBy?.id || null,
       discipline: this.disciplineToResponseDto(lesson.discipline),
+
+      links: lesson.links?.map(link => ({
+        id: link.id,
+        lesson_id: link.lessonId,   
+        link_type: link.linkType,
+        url: link.url,
+        title: link.title,
+        description: link.description,
+        created_at: link.createdAt,
+      })).sort((a, b) => b.created_at.getTime() - a.created_at.getTime()) || [],
+      
+      texts: lesson.texts?.map(text => ({
+        id: text.id,
+        lesson_id: text.lessonId,   
+        title: text.title,
+        content: text.materialText,
+        order_number: text.orderNumber,
+        created_at: text.createdAt,
+      })).sort((a, b) => a.order_number - b.order_number) || [],
+      
+      attachments: lesson.attachments?.map(att => ({
+        id: att.id,
+        lesson_id: att.lessonId,   
+        file_name: att.fileName,
+        file_type: att.fileType,
+        file_size: att.fileSize,
+        file_url: `/api/attachments/${att.id}/download`,
+        uploaded_by: att.uploadedBy,   
+        uploaded_at: att.uploadedAt,
+      })).sort((a, b) => b.uploaded_at.getTime() - a.uploaded_at.getTime()) || [],
+
       created_at: lesson.createdAt,
       updated_at: lesson.updatedAt,
     };

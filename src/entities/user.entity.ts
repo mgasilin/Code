@@ -5,7 +5,8 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export enum UserRole {
   STUDENT = 'student',
-  TEACHER = 'teacher'
+  TEACHER = 'teacher',
+  ADMIN = 'teacher'
 }
 
 @Entity('users')
@@ -18,7 +19,7 @@ export class User {
   @Column({ name: 'ldap_uid', unique: true, nullable: true })
   ldapUid: string;
 
-  @ApiProperty({ example: '+79001234567', description: 'Номер телефона' })
+  @ApiProperty({ example: '+79001234567', description: 'Номер телефона', nullable: true })
   @Column({ name: 'phone_number', unique: true, nullable: true })
   phoneNumber: string;
 
@@ -36,6 +37,10 @@ export class User {
   @ApiProperty({ example: 'Иванович', description: 'Отчество', nullable: true })
   @Column({ nullable: true })
   patronymic: string;
+
+  @ApiProperty({ example: 'ИИ', description: 'Инициалы пользователя', nullable: true })
+  @Column({ length: 10, nullable: true })
+  initials: string;
 
   @ApiProperty({ example: 'ivanov@vuc.local', description: 'Email адрес' })
   @Column({ unique: true, nullable: true })
