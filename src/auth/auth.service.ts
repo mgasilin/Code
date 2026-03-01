@@ -65,8 +65,7 @@ export class AuthService {
     if (loginDto.auth_type === AuthType.STUDENT) {
       user = await this.validateStudentUser(
         loginDto.last_name,
-        loginDto.initials,
-        loginDto.password
+        loginDto.initials
       );
     } else if (loginDto.auth_type === AuthType.ADMIN) {
       user = await this.validateAdminUser(
@@ -92,7 +91,7 @@ export class AuthService {
     };
   }
 
-  private async validateStudentUser(lastName: string, initials: string, password: string): Promise<User> {
+  private async validateStudentUser(lastName: string, initials: string): Promise<User> {
     const user = await this.usersRepository.findOne({
       where: {
         lastName,
@@ -102,7 +101,7 @@ export class AuthService {
       },
     });
 
-    if (user && user.passwordHash && await bcrypt.compare(password, user.passwordHash)) {
+    if (user) {
       return user;
     }
 
