@@ -31,7 +31,7 @@ export class AuthController {
     oneOf: [
       {
         type: 'object',
-        required: ['auth_type', 'last_name', 'initials', 'password'],
+        required: ['auth_type', 'last_name', 'initials'],
         properties: {
           auth_type: { type: 'string', enum: ['student'], example: 'student' },
           last_name: { type: 'string', example: 'Иванов' },

@@ -150,7 +150,7 @@ SELECT
     '" в рамках дисциплины ' || d.name || '.</p>' ||
     '<p>Материал включает специализированные разделы, соответствующие направлению подготовки.</p>'
 FROM lessons l
-JOIN disciplines d ON l.discipline_id = d.id
+JOIN disciplines d ON l.discipline_id = d.id;
 
 
 INSERT INTO material_links (lesson_id, link_type, url, title, description)
@@ -221,8 +221,7 @@ SELECT 'Студенты', COUNT(*) FROM users WHERE role = 'student'
 UNION ALL
 SELECT 'Занятия', COUNT(*) FROM lessons
 UNION ALL
-SELECT 'Прикрепленные файлы', COUNT(*) FROM material_attachments
-;
+SELECT 'Прикрепленные файлы', COUNT(*) FROM material_attachments;
 
 -- ============================================================================
 -- ПРОВЕРКА СВЯЗЕЙ С НОВОЙ СТРУКТУРОЙ
@@ -291,20 +290,8 @@ JOIN cources c ON p.cource_id = c.id
 WHERE c.name = 'ЗИТ' AND u.role = 'student'
 ORDER BY p.year_of_study DESC, u.last_name;
 
--- 3. Получить материалы для взвода 2402 (АСО, 2 курс)
-SELECT 
-    m.title as material_title,
-    m.material_type,
-    l.name as lesson_name,
-    d.name as discipline_name,
-    c.name as cource_name
-FROM materials m
-JOIN lessons l ON m.lesson_id = l.id
-JOIN disciplines d ON l.discipline_id = d.id
-JOIN cources c ON d.cource_id = c.id
-ORDER BY l.order_number, m.id;
 
--- 4. Статистика по направлениям
+-- 3. Статистика по направлениям
 SELECT 
     c.name as cource_name,
     COUNT(DISTINCT p.id) as platoons_count,
@@ -320,7 +307,7 @@ GROUP BY c.id, c.name
 ORDER BY c.name;
 
 
--- 5. Пример получения всех материалов для конкретного занятия
+-- 4. Пример получения всех материалов для конкретного занятия
 SELECT 
     l.name as lesson_name,
     l.lesson_type,
