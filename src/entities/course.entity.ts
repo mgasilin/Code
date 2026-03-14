@@ -1,6 +1,6 @@
 import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, OneToMany, ManyToOne, JoinColumn } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
-import { Discipline } from './discipline.entity';
+import { DisciplineCourse } from './discipline-course.entity';
 import { Platoon } from './platoon.entity';
 import { User } from './user.entity';
 
@@ -35,8 +35,8 @@ export class Course {
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 
-  @OneToMany(() => Discipline, discipline => discipline.course)
-  disciplines: Discipline[];
+  @OneToMany(() => DisciplineCourse, disciplineCourse => disciplineCourse.course)
+  disciplineCourses: DisciplineCourse[];
 
   @OneToMany(() => Platoon, platoon => platoon.course)
   platoons: Platoon[];

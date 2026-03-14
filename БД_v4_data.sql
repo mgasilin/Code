@@ -1,7 +1,7 @@
 -- ============================================================================
 -- СКРИПТ ЗАПОЛНЕНИЯ БАЗЫ ДАННЫХ UMK ТЕСТОВЫМИ ДАННЫМИ
 -- Учебно-методический комплекс Военного учебного центра
--- Версия: 1.2 (с привязкой взводов к направлениям)
+-- Версия: 2.2 (исправленная)
 -- Дата: 27 октября 2025
 -- ============================================================================
 
@@ -13,195 +13,426 @@ SET search_path TO dev_data;
 -- ============================================================================
 
 INSERT INTO cources (name, description, created_at, is_active) VALUES
-('АСО', 'Автоматизированные системы охраны', CURRENT_TIMESTAMP, TRUE),
-('ЗИТ', 'Защита информационных технологий', CURRENT_TIMESTAMP, TRUE);
+('ИПБ', 'Информационное противоборство', CURRENT_TIMESTAMP, TRUE),
+('АСО', 'Автоматизированные системы охраны', CURRENT_TIMESTAMP, TRUE);
 
 -- ============================================================================
 -- 2. СОЗДАНИЕ ВЗВОДОВ С ПРИВЯЗКОЙ К НАПРАВЛЕНИЯМ
 -- ============================================================================
 
--- Взводы для направления АСО
+-- Взводы для направления ИПБ (по 2 взвода на курс)
 INSERT INTO platoons (id, cource_id, year_of_study, description) VALUES
-('2302', (SELECT id FROM cources WHERE name = 'АСО'), 3, 'Третий год обучения - Направление АСО'),
-('2402', (SELECT id FROM cources WHERE name = 'АСО'), 2, 'Второй год обучения - Направление АСО'),
-('2502', (SELECT id FROM cources WHERE name = 'АСО'), 1, 'Первый год обучения - Направление АСО');
+('2301', (SELECT id FROM cources WHERE name = 'ИПБ'), 3, '3 курс - Направление ИПБ, взвод 1'),
+('2302', (SELECT id FROM cources WHERE name = 'ИПБ'), 3, '3 курс - Направление ИПБ, взвод 2'),
+('2401', (SELECT id FROM cources WHERE name = 'ИПБ'), 2, '2 курс - Направление ИПБ, взвод 1'),
+('2402', (SELECT id FROM cources WHERE name = 'ИПБ'), 2, '2 курс - Направление ИПБ, взвод 2'),
+('2501', (SELECT id FROM cources WHERE name = 'ИПБ'), 1, '1 курс - Направление ИПБ, взвод 1'),
+('2502', (SELECT id FROM cources WHERE name = 'ИПБ'), 1, '1 курс - Направление ИПБ, взвод 2');
 
--- Взводы для направления ЗИТ
+-- Взводы для направления АСО (по 2 взвода на курс)
 INSERT INTO platoons (id, cource_id, year_of_study, description) VALUES
-('2301', (SELECT id FROM cources WHERE name = 'ЗИТ'), 3, 'Третий год обучения - Направление ЗИТ'),
-('2401', (SELECT id FROM cources WHERE name = 'ЗИТ'), 2, 'Второй год обучения - Направление ЗИТ'),
-('2501', (SELECT id FROM cources WHERE name = 'ЗИТ'), 1, 'Первый год обучения - Направление ЗИТ');
+('2303', (SELECT id FROM cources WHERE name = 'АСО'), 3, '3 курс - Направление АСО, взвод 1'),
+('2304', (SELECT id FROM cources WHERE name = 'АСО'), 3, '3 курс - Направление АСО, взвод 2'),
+('2403', (SELECT id FROM cources WHERE name = 'АСО'), 2, '2 курс - Направление АСО, взвод 1'),
+('2404', (SELECT id FROM cources WHERE name = 'АСО'), 2, '2 курс - Направление АСО, взвод 2'),
+('2503', (SELECT id FROM cources WHERE name = 'АСО'), 1, '1 курс - Направление АСО, взвод 1'),
+('2504', (SELECT id FROM cources WHERE name = 'АСО'), 1, '1 курс - Направление АСО, взвод 2');
 
 -- ============================================================================
--- 3. СОЗДАНИЕ ПОЛЬЗОВАТЕЛЕЙ
+-- 3. СОЗДАНИЕ АДМИНИСТРАТОРА
 -- ============================================================================
 
--- Сначала создаем преподавателя для указания в created_by
 INSERT INTO users (ldap_uid, phone_number, password_hash, first_name, last_name, patronymic, role, initials) VALUES
-('admin', '+79111111111', '$2b$12$u97VtGKwg1BA7Y8YXzb0BeSfVeylMcdjTjN4BCUljG.7H4xjIn/Ay', '', 'Администратор системы', '', 'teacher', 'Админ');
-
--- Обновляем направления подготовки с указанием created_by
-UPDATE cources SET created_by = (SELECT id FROM users WHERE ldap_uid = 'admin');
-
--- Преподаватели (используют LDAP аутентификацию)
-INSERT INTO users (ldap_uid, phone_number, first_name, last_name, patronymic, role, initials) VALUES
-('teacher1', '+79110000001', 'Иван', 'Петров', 'Сергеевич', 'teacher', 'И. С.'),
-('teacher2', '+79110000002', 'Мария', 'Сидорова', 'Александровна', 'teacher', 'М. С.'),
-('teacher3', '+79110000003', 'Алексей', 'Козлов', 'Викторович', 'teacher', 'А. В.');
-
--- Студенты направления АСО
-INSERT INTO users (phone_number, first_name, last_name, patronymic, platoon_id, role, initials) VALUES
-('+79110000101', 'Александр', 'Иванов', 'Петрович', '2302', 'student', 'А. П.'),
-('+79110000102', 'Дмитрий', 'Смирнов', 'Павлович', '2302', 'student', 'Д. П.'),
-('+79110000103', 'Екатерина', 'Кузнецова', 'Сергеевна', '2402', 'student', 'Е. С.'),
-('+79110000104', 'Ольга', 'Попова', 'Андреевна', '2402', 'student', 'О. А.'),
-('+79110000105', 'Сергей', 'Васильев', 'Дмитриевич', '2502', 'student', 'С. Д.'),
-('+79110000106', 'Наталья', 'Новикова', 'Игоревна', '2502', 'student', 'Н. И.');
-
--- Студенты направления ЗИТ
-INSERT INTO users (phone_number, first_name, last_name, patronymic, platoon_id, role, initials) VALUES
-('+79110000201', 'Андрей', 'Морозов', 'Владимирович', '2301', 'student', 'А. В.'),
-('+79110000202', 'Татьяна', 'Волкова', 'Олеговна', '2301', 'student', 'Т. О.'),
-('+79110000203', 'Павел', 'Алексеев', 'Николаевич', '2401', 'student', 'П. Н.'),
-('+79110000204', 'Ирина', 'Лебедева', 'Викторовна', '2401', 'student', 'И. В.'),
-('+79110000205', 'Михаил', 'Семенов', 'Анатольевич', '2501', 'student', 'М. А.'),
-('+79110000206', 'Елена', 'Егорова', 'Станиславовна', '2501', 'student', 'Е. С.');
+('admin', '+79111111111', '$2b$12$u97VtGKwg1BA7Y8YXzb0BeSfVeylMcdjTjN4BCUljG.7H4xjIn/Ay', '', 'Администратор системы', '', 'teacher', 'А. С.');
 
 -- ============================================================================
--- 4. СОЗДАНИЕ ДИСЦИПЛИН
+-- 4. СОЗДАНИЕ ФУНКЦИИ ДЛЯ ЗАНЯТИЙ (ВНЕ БЛОКА DO)
 -- ============================================================================
 
--- Дисциплины для направления АСО
-INSERT INTO disciplines (cource_id, name, description, year_of_study, created_by) VALUES
-((SELECT id FROM cources WHERE name = 'АСО'), 'ОВП АСО', 'Общевоенная подготовка - первый год обучения АСО', 1, 1),
-((SELECT id FROM cources WHERE name = 'АСО'), 'ТП АСО', 'Тактическая подготовка - первый год обучения АСО', 1, 1),
-((SELECT id FROM cources WHERE name = 'АСО'), 'ТСП АСО', 'Тактико-специальная подготовка - второй год обучения АСО', 2, 1),
-((SELECT id FROM cources WHERE name = 'АСО'), 'ТСП АСО', 'Тактико-специальная подготовка - третий год обучения АСО', 3, 1),
-((SELECT id FROM cources WHERE name = 'АСО'), 'ВСП АСО', 'Военно-специальная подготовка - второй год обучения АСО', 2, 1),
-((SELECT id FROM cources WHERE name = 'АСО'), 'ВСП АСО', 'Военно-специальная подготовка - третий год обучения АСО', 3, 1);
+-- Удаляем функцию, если она существует
+DROP FUNCTION IF EXISTS create_lessons_for_discipline(VARCHAR, BOOLEAN, INTEGER);
 
--- Дисциплины для направления ЗИТ
-INSERT INTO disciplines (cource_id, name, description, year_of_study, created_by) VALUES
-((SELECT id FROM cources WHERE name = 'ЗИТ'), 'ОВП ЗИТ', 'Общевоенная подготовка - первый год обучения ЗИТ', 1, 1),
-((SELECT id FROM cources WHERE name = 'ЗИТ'), 'ТП ЗИТ', 'Тактическая подготовка - первый год обучения ЗИТ', 1, 1),
-((SELECT id FROM cources WHERE name = 'ЗИТ'), 'ТСП ЗИТ', 'Тактико-специальная подготовка - второй год обучения ЗИТ', 2, 1),
-((SELECT id FROM cources WHERE name = 'ЗИТ'), 'ВСП ЗИТ', 'Военно-специальная подготовка - третий год обучения ЗИТ', 3, 1),
-((SELECT id FROM cources WHERE name = 'ЗИТ'), 'ТСП ЗИТ', 'Тактико-специальная подготовка - второй год обучения ЗИТ', 3, 1),
-((SELECT id FROM cources WHERE name = 'ЗИТ'), 'ВСП ЗИТ', 'Военно-специальная подготовка - третий год обучения ЗИТ', 2, 1);
-
--- ============================================================================
--- 5. СОЗДАНИЕ ЗАНЯТИЙ (LESSONS)
--- ============================================================================
-
--- Функция для создания занятий для дисциплины
+-- Создаем функцию
 CREATE OR REPLACE FUNCTION create_lessons_for_discipline(
-    p_discipline_id INTEGER, 
-    p_teacher_id INTEGER,
-    p_discipline_name VARCHAR
+    p_discipline_name VARCHAR,
+    p_is_vsp BOOLEAN,
+    p_admin_id INTEGER
 ) RETURNS VOID AS $$
+DECLARE
+    v_discipline_id INTEGER;
+    v_topic1 VARCHAR;
+    v_topic2 VARCHAR;
 BEGIN
-    -- Теоретические занятия с уникальным контентом для каждой дисциплины
-    INSERT INTO lessons (discipline_id, name, order_number, description, lesson_type, created_by) VALUES
-    (p_discipline_id, 'Введение в ' || p_discipline_name, 1, 
-     'Основные понятия и задачи дисциплины ' || p_discipline_name || '. Изучение базовых принципов и терминологии.', 
-     'theory', p_teacher_id),
-    (p_discipline_id, 'Основные принципы ' || p_discipline_name, 2, 
-     'Фундаментальные принципы и подходы в ' || p_discipline_name || '. Анализ ключевых концепций.', 
-     'theory', p_teacher_id),
-    (p_discipline_id, 'Практическое применение ' || p_discipline_name, 3, 
-     'Реальные кейсы и примеры использования знаний по ' || p_discipline_name || ' в практической деятельности.', 
-     'practics', p_teacher_id);
+    -- Получаем ID дисциплины
+    SELECT id INTO v_discipline_id FROM disciplines WHERE name = p_discipline_name;
     
-    -- Тестовое занятие
-    INSERT INTO lessons (discipline_id, name, order_number, description, lesson_type, created_by) VALUES
-    (p_discipline_id, 'Итоговый тест по ' || p_discipline_name, 4, 
-     'Контрольное тестирование по пройденному материалу дисциплины ' || p_discipline_name || '.', 
-     'group', p_teacher_id);
+    -- Определяем темы для занятий
+    IF p_discipline_name = 'ОВП-1' THEN
+        v_topic1 := 'Основы военной службы';
+        v_topic2 := 'Воинская дисциплина и уставы';
+    ELSIF p_discipline_name = 'ОВП-2' THEN
+        v_topic1 := 'Строевые приемы и движение';
+        v_topic2 := 'Строи подразделений';
+    ELSIF p_discipline_name = 'ОВП-3' THEN
+        v_topic1 := 'Меры безопасности при обращении с оружием';
+        v_topic2 := 'Основы и правила стрельбы';
+    ELSIF p_discipline_name = 'ТП' THEN
+        v_topic1 := 'Основы общевойскового боя';
+        v_topic2 := 'Управление подразделениями в бою';
+    ELSIF p_discipline_name = 'ОВП-4' THEN
+        v_topic1 := 'Первая помощь в боевых условиях';
+        v_topic2 := 'Эвакуация раненых';
+    ELSIF p_discipline_name LIKE 'ТСП%' THEN
+        v_topic1 := 'Теоретические основы специальной подготовки';
+        v_topic2 := 'Практическое применение специальных средств';
+    ELSE -- ВСП
+        v_topic1 := 'Специальное оборудование и средства';
+        v_topic2 := 'Организация специальных работ';
+    END IF;
+    
+    -- Для ВСП: лекция + групповое занятие + 2 практических
+    IF p_is_vsp THEN
+        -- Тема 1
+        INSERT INTO lessons (discipline_id, name, order_number, description, lesson_type, created_by) VALUES
+        (v_discipline_id, 'Лекция: ' || v_topic1, 1, 
+         'Лекционное занятие по теме: ' || v_topic1 || '. Изучение теоретических основ.', 
+         'theory', p_admin_id);
+        
+        INSERT INTO lessons (discipline_id, name, order_number, description, lesson_type, created_by) VALUES
+        (v_discipline_id, 'Групповое занятие: ' || v_topic1, 2, 
+         'Групповое обсуждение и решение ситуационных задач по теме: ' || v_topic1, 
+         'group', p_admin_id);
+        
+        INSERT INTO lessons (discipline_id, name, order_number, description, lesson_type, created_by) VALUES
+        (v_discipline_id, 'Практическое занятие 1: ' || v_topic1, 3, 
+         'Отработка практических навыков по теме: ' || v_topic1 || ' (часть 1)', 
+         'practics', p_admin_id);
+        
+        INSERT INTO lessons (discipline_id, name, order_number, description, lesson_type, created_by) VALUES
+        (v_discipline_id, 'Практическое занятие 2: ' || v_topic1, 4, 
+         'Отработка практических навыков по теме: ' || v_topic1 || ' (часть 2)', 
+         'practics', p_admin_id);
+        
+        -- Тема 2
+        INSERT INTO lessons (discipline_id, name, order_number, description, lesson_type, created_by) VALUES
+        (v_discipline_id, 'Лекция: ' || v_topic2, 5, 
+         'Лекционное занятие по теме: ' || v_topic2 || '. Изучение теоретических основ.', 
+         'theory', p_admin_id);
+        
+        INSERT INTO lessons (discipline_id, name, order_number, description, lesson_type, created_by) VALUES
+        (v_discipline_id, 'Групповое занятие: ' || v_topic2, 6, 
+         'Групповое обсуждение и решение ситуационных задач по теме: ' || v_topic2, 
+         'group', p_admin_id);
+        
+        INSERT INTO lessons (discipline_id, name, order_number, description, lesson_type, created_by) VALUES
+        (v_discipline_id, 'Практическое занятие 1: ' || v_topic2, 7, 
+         'Отработка практических навыков по теме: ' || v_topic2 || ' (часть 1)', 
+         'practics', p_admin_id);
+        
+        INSERT INTO lessons (discipline_id, name, order_number, description, lesson_type, created_by) VALUES
+        (v_discipline_id, 'Практическое занятие 2: ' || v_topic2, 8, 
+         'Отработка практических навыков по теме: ' || v_topic2 || ' (часть 2)', 
+         'practics', p_admin_id);
+        
+    -- Для остальных: лекция + 2 групповых на тему (2 темы) = 6 занятий
+    ELSE
+        -- Тема 1
+        INSERT INTO lessons (discipline_id, name, order_number, description, lesson_type, created_by) VALUES
+        (v_discipline_id, 'Лекция: ' || v_topic1, 1, 
+         'Лекционное занятие по теме: ' || v_topic1, 
+         'theory', p_admin_id);
+        
+        INSERT INTO lessons (discipline_id, name, order_number, description, lesson_type, created_by) VALUES
+        (v_discipline_id, 'Групповое занятие 1: ' || v_topic1, 2, 
+         'Групповое занятие по теме: ' || v_topic1 || ' (часть 1)', 
+         'group', p_admin_id);
+        
+        INSERT INTO lessons (discipline_id, name, order_number, description, lesson_type, created_by) VALUES
+        (v_discipline_id, 'Групповое занятие 2: ' || v_topic1, 3, 
+         'Групповое занятие по теме: ' || v_topic1 || ' (часть 2)', 
+         'group', p_admin_id);
+        
+        -- Тема 2
+        INSERT INTO lessons (discipline_id, name, order_number, description, lesson_type, created_by) VALUES
+        (v_discipline_id, 'Лекция: ' || v_topic2, 4, 
+         'Лекционное занятие по теме: ' || v_topic2, 
+         'theory', p_admin_id);
+        
+        INSERT INTO lessons (discipline_id, name, order_number, description, lesson_type, created_by) VALUES
+        (v_discipline_id, 'Групповое занятие 1: ' || v_topic2, 5, 
+         'Групповое занятие по теме: ' || v_topic2 || ' (часть 1)', 
+         'group', p_admin_id);
+        
+        INSERT INTO lessons (discipline_id, name, order_number, description, lesson_type, created_by) VALUES
+        (v_discipline_id, 'Групповое занятие 2: ' || v_topic2, 6, 
+         'Групповое занятие по теме: ' || v_topic2 || ' (часть 2)', 
+         'group', p_admin_id);
+    END IF;
 END;
 $$ LANGUAGE plpgsql;
 
--- Создаем занятия для всех дисциплин АСО
-SELECT create_lessons_for_discipline(1, 1, 'ОВП АСО');
-SELECT create_lessons_for_discipline(2, 1, 'ТП АСО');
-SELECT create_lessons_for_discipline(3, 1, 'ТСП АСО');
-SELECT create_lessons_for_discipline(4, 1, 'ТСП АСО');
-SELECT create_lessons_for_discipline(5, 2, 'ВСП АСО');
-SELECT create_lessons_for_discipline(6, 2, 'ВСП АСО');
-
--- Создаем занятия для всех дисциплин ЗИТ
-SELECT create_lessons_for_discipline(7, 3, 'ОВП ЗИТ');
-SELECT create_lessons_for_discipline(8, 3, 'ТП ЗИТ');
-SELECT create_lessons_for_discipline(9, 3, 'ТСП ЗИТ');
-SELECT create_lessons_for_discipline(10, 2, 'ВСП ЗИТ');
-SELECT create_lessons_for_discipline(11, 3, 'ТСП ЗИТ');
-SELECT create_lessons_for_discipline(12, 2, 'ВСП ЗИТ');
-
--- Удаляем временную функцию
-DROP FUNCTION create_lessons_for_discipline(INTEGER, INTEGER, VARCHAR);
-
-
-INSERT INTO material_texts (lesson_id, order_number, title, material_text)
-SELECT 
-    l.id,
-    1,
-    'Теоретический материал: ' || l.name,
-    '<h1>Основной теоретический материал</h1>' ||
-    '<p>Это содержимое теоретического материала для занятия "' || l.name || 
-    '" в рамках дисциплины ' || d.name || '.</p>' ||
-    '<p>Материал включает специализированные разделы, соответствующие направлению подготовки.</p>'
-FROM lessons l
-JOIN disciplines d ON l.discipline_id = d.id;
-
-
-INSERT INTO material_links (lesson_id, link_type, url, title, description)
-SELECT 
-    l.id,
-    CASE 
-        WHEN l.lesson_type = 'group' THEN 'test_module'
-        ELSE 'external'
-    END,
-    CASE 
-        WHEN l.lesson_type = 'group' THEN '/tests/' || l.id::text || '/start'
-        ELSE 'https://library.mil.ru/' || l.id::text
-    END,
-    CASE 
-        WHEN l.lesson_type = 'group' THEN 'Модуль тестирования: ' || l.name
-        ELSE 'Библиотека ВУЦ: ' || l.name
-    END,
-    CASE 
-        WHEN l.lesson_type = 'group' THEN 'Перейти к прохождению итогового тестирования'
-        ELSE 'Дополнительные материалы в библиотеке ВУЦ'
-    END
-FROM lessons l
-WHERE l.lesson_type IN ('theory', 'practics', 'group');
-
-
 -- ============================================================================
--- 8. СОЗДАНИЕ ПРИКРЕПЛЕННЫХ ФАЙЛОВ
+-- 5. ОСНОВНОЙ БЛОК ЗАПОЛНЕНИЯ ДАННЫМИ
 -- ============================================================================
 
-INSERT INTO material_attachments (lesson_id, file_name, file_type, file_path, file_size, uploaded_by)
-SELECT 
-    l.id,
-    'lecture_notes_' || l.id::text || '.pdf' as file_name,
-    'application/pdf' as file_type,
-    '/storage/lessons/' || l.id::text || '/lecture.pdf',
-    1048576, -- 1MB
-    1
-FROM lessons l
-WHERE l.lesson_type IN ('theory', 'practics', 'group')
-UNION ALL
-SELECT 
-    l.id,
-    'additional_materials_' || l.id::text || '.zip' as file_name,
-    'application/zip' as file_type,
-    '/storage/lessons/' || l.id::text || '/additional.zip',
-    2097152, -- 2MB
-    1
-FROM lessons l
-WHERE l.lesson_type IN ('theory', 'practics');
+DO $$
+DECLARE
+    v_admin_id INTEGER;
+BEGIN
+    -- Получаем ID администратора
+    SELECT id INTO v_admin_id FROM users WHERE ldap_uid = 'admin';
+    
+    -- Обновляем направления подготовки с указанием created_by
+    UPDATE cources SET created_by = v_admin_id;
+    
+    -- ============================================================================
+    -- 6. СОЗДАНИЕ СТУДЕНТОВ (мужчины, по 4 человека во взводе)
+    -- ============================================================================
+    
+    -- Студенты ИПБ, 3 курс, взвод 2301
+    INSERT INTO users (phone_number, first_name, last_name, patronymic, platoon_id, role, initials) VALUES
+    ('+79110100101', 'Александр', 'Иванов', 'Петрович', '2301', 'student', 'А. П.'),
+    ('+79110100102', 'Дмитрий', 'Смирнов', 'Павлович', '2301', 'student', 'Д. П.'),
+    ('+79110100103', 'Максим', 'Кузнецов', 'Сергеевич', '2301', 'student', 'М. С.'),
+    ('+79110100104', 'Артем', 'Попов', 'Андреевич', '2301', 'student', 'А. А.');
 
+    -- Студенты ИПБ, 3 курс, взвод 2302
+    INSERT INTO users (phone_number, first_name, last_name, patronymic, platoon_id, role, initials) VALUES
+    ('+79110100201', 'Илья', 'Васильев', 'Дмитриевич', '2302', 'student', 'И. Д.'),
+    ('+79110100202', 'Кирилл', 'Новиков', 'Игоревич', '2302', 'student', 'К. И.'),
+    ('+79110100203', 'Павел', 'Федоров', 'Алексеевич', '2302', 'student', 'П. А.'),
+    ('+79110100204', 'Роман', 'Морозов', 'Владимирович', '2302', 'student', 'Р. В.');
 
+    -- Студенты ИПБ, 2 курс, взвод 2401
+    INSERT INTO users (phone_number, first_name, last_name, patronymic, platoon_id, role, initials) VALUES
+    ('+79110200101', 'Владислав', 'Волков', 'Олегович', '2401', 'student', 'В. О.'),
+    ('+79110200102', 'Григорий', 'Алексеев', 'Николаевич', '2401', 'student', 'Г. Н.'),
+    ('+79110200103', 'Константин', 'Лебедев', 'Викторович', '2401', 'student', 'К. В.'),
+    ('+79110200104', 'Никита', 'Семенов', 'Анатольевич', '2401', 'student', 'Н. А.');
+
+    -- Студенты ИПБ, 2 курс, взвод 2402
+    INSERT INTO users (phone_number, first_name, last_name, patronymic, platoon_id, role, initials) VALUES
+    ('+79110200201', 'Олег', 'Егоров', 'Станиславович', '2402', 'student', 'О. С.'),
+    ('+79110200202', 'Антон', 'Павлов', 'Борисович', '2402', 'student', 'А. Б.'),
+    ('+79110200203', 'Вадим', 'Степанов', 'Геннадьевич', '2402', 'student', 'В. Г.'),
+    ('+79110200204', 'Виктор', 'Николаев', 'Евгеньевич', '2402', 'student', 'В. Е.');
+
+    -- Студенты ИПБ, 1 курс, взвод 2501
+    INSERT INTO users (phone_number, first_name, last_name, patronymic, platoon_id, role, initials) VALUES
+    ('+79110300101', 'Георгий', 'Захаров', 'Романович', '2501', 'student', 'Г. Р.'),
+    ('+79110300102', 'Даниил', 'Белов', 'Аркадьевич', '2501', 'student', 'Д. А.'),
+    ('+79110300103', 'Евгений', 'Тарасов', 'Валентинович', '2501', 'student', 'Е. В.'),
+    ('+79110300104', 'Захар', 'Козлов', 'Федорович', '2501', 'student', 'З. Ф.');
+
+    -- Студенты ИПБ, 1 курс, взвод 2502
+    INSERT INTO users (phone_number, first_name, last_name, patronymic, platoon_id, role, initials) VALUES
+    ('+79110300201', 'Игорь', 'Михайлов', 'Эдуардович', '2502', 'student', 'И. Э.'),
+    ('+79110300202', 'Леонид', 'Андреев', 'Юрьевич', '2502', 'student', 'Л. Ю.'),
+    ('+79110300203', 'Матвей', 'Макаров', 'Тимофеевич', '2502', 'student', 'М. Т.'),
+    ('+79110300204', 'Николай', 'Орлов', 'Григорьевич', '2502', 'student', 'Н. Г.');
+
+    -- Студенты АСО, 3 курс, взвод 2303
+    INSERT INTO users (phone_number, first_name, last_name, patronymic, platoon_id, role, initials) VALUES
+    ('+79110400301', 'Петр', 'Абрамов', 'Данилович', '2303', 'student', 'П. Д.'),
+    ('+79110400302', 'Руслан', 'Григорьев', 'Максимович', '2303', 'student', 'Р. М.'),
+    ('+79110400303', 'Семен', 'Давыдов', 'Ильич', '2303', 'student', 'С. И.'),
+    ('+79110400304', 'Тимофей', 'Ершов', 'Кириллович', '2303', 'student', 'Т. К.');
+
+    -- Студенты АСО, 3 курс, взвод 2304
+    INSERT INTO users (phone_number, first_name, last_name, patronymic, platoon_id, role, initials) VALUES
+    ('+79110400401', 'Федор', 'Жуков', 'Леонидович', '2304', 'student', 'Ф. Л.'),
+    ('+79110400402', 'Юрий', 'Зайцев', 'Михайлович', '2304', 'student', 'Ю. М.'),
+    ('+79110400403', 'Ярослав', 'Исаев', 'Никитич', '2304', 'student', 'Я. Н.'),
+    ('+79110400404', 'Борис', 'Крылов', 'Олегович', '2304', 'student', 'Б. О.');
+
+    -- Студенты АСО, 2 курс, взвод 2403
+    INSERT INTO users (phone_number, first_name, last_name, patronymic, platoon_id, role, initials) VALUES
+    ('+79110500301', 'Валентин', 'Лазарев', 'Павлович', '2403', 'student', 'В. П.'),
+    ('+79110500302', 'Виталий', 'Медведев', 'Робертович', '2403', 'student', 'В. Р.'),
+    ('+79110500303', 'Геннадий', 'Назаров', 'Станиславович', '2403', 'student', 'Г. С.'),
+    ('+79110500304', 'Денис', 'Осипов', 'Тарасович', '2403', 'student', 'Д. Т.');
+
+    -- Студенты АСО, 2 курс, взвод 2404
+    INSERT INTO users (phone_number, first_name, last_name, patronymic, platoon_id, role, initials) VALUES
+    ('+79110500401', 'Егор', 'Поляков', 'Ульянович', '2404', 'student', 'Е. У.'),
+    ('+79110500402', 'Иван', 'Романов', 'Филиппович', '2404', 'student', 'И. Ф.'),
+    ('+79110500403', 'Марат', 'Сергеев', 'Харитонович', '2404', 'student', 'М. Х.'),
+    ('+79110500404', 'Назар', 'Тихонов', 'Цезаревич', '2404', 'student', 'Н. Ц.');
+
+    -- Студенты АСО, 1 курс, взвод 2503
+    INSERT INTO users (phone_number, first_name, last_name, patronymic, platoon_id, role, initials) VALUES
+    ('+79110600301', 'Оскар', 'Ушаков', 'Шамильевич', '2503', 'student', 'О. Ш.'),
+    ('+79110600302', 'Платон', 'Фомин', 'Щенснович', '2503', 'student', 'П. Щ.'),
+    ('+79110600303', 'Роберт', 'Харитонов', 'Эльдарович', '2503', 'student', 'Р. Э.'),
+    ('+79110600304', 'Станислав', 'Цветков', 'Юлианович', '2503', 'student', 'С. Ю.');
+
+    -- Студенты АСО, 1 курс, взвод 2504
+    INSERT INTO users (phone_number, first_name, last_name, patronymic, platoon_id, role, initials) VALUES
+    ('+79110600401', 'Тарас', 'Чернов', 'Яковлевич', '2504', 'student', 'Т. Я.'),
+    ('+79110600402', 'Ульян', 'Широков', 'Артемович', '2504', 'student', 'У. А.'),
+    ('+79110600403', 'Филипп', 'Щукин', 'Богданович', '2504', 'student', 'Ф. Б.'),
+    ('+79110600404', 'Харитон', 'Юдин', 'Владиславович', '2504', 'student', 'Х. В.');
+
+    -- ============================================================================
+    -- 7. СОЗДАНИЕ ДИСЦИПЛИН
+    -- ============================================================================
+    
+    -- Общие дисциплины (для обоих направлений)
+    INSERT INTO disciplines (name, description, year_of_study, created_by, is_active) VALUES
+    ('ОВП-1', 'Общевоенная подготовка - модуль 1: Основы военной службы', 1, v_admin_id, TRUE),
+    ('ОВП-2', 'Общевоенная подготовка - модуль 2: Строевая подготовка', 1, v_admin_id, TRUE),
+    ('ОВП-3', 'Общевоенная подготовка - модуль 3: Огневая подготовка', 1, v_admin_id, TRUE),
+    ('ТП', 'Тактическая подготовка: Основы тактики общевойскового боя', 1, v_admin_id, TRUE),
+    ('ОВП-4', 'Общевоенная подготовка - модуль 4: Тактическая медицина', 2, v_admin_id, TRUE);
+
+    -- Специальные дисциплины для ИПБ
+    INSERT INTO disciplines (name, description, year_of_study, created_by, is_active) VALUES
+    ('ТСП ИПБ-1', 'Тактико-специальная подготовка ИПБ: Основы информационного противоборства', 2, v_admin_id, TRUE),
+    ('ТСП ИПБ-2', 'Тактико-специальная подготовка ИПБ: Методы защиты информации', 3, v_admin_id, TRUE),
+    ('ВСП ИПБ-1', 'Военно-специальная подготовка ИПБ: Организация информационных операций', 2, v_admin_id, TRUE),
+    ('ВСП ИПБ-2', 'Военно-специальная подготовка ИПБ: Кибербезопасность и защита сетей', 3, v_admin_id, TRUE);
+
+    -- Специальные дисциплины для АСО
+    INSERT INTO disciplines (name, description, year_of_study, created_by, is_active) VALUES
+    ('ТСП АСО-1', 'Тактико-специальная подготовка АСО: Принципы построения АСО', 2, v_admin_id, TRUE),
+    ('ТСП АСО-2', 'Тактико-специальная подготовка АСО: Интегрированные системы безопасности', 3, v_admin_id, TRUE),
+    ('ВСП АСО-1', 'Военно-специальная подготовка АСО: Эксплуатация систем охраны', 2, v_admin_id, TRUE),
+    ('ВСП АСО-2', 'Военно-специальная подготовка АСО: Проектирование АСО', 3, v_admin_id, TRUE);
+
+    -- ============================================================================
+    -- 8. СВЯЗИ НАПРАВЛЕНИЙ С ДИСЦИПЛИНАМИ
+    -- ============================================================================
+    
+    -- Общие дисциплины для обоих направлений
+    INSERT INTO discipline_cources (cource_id, discipline_id)
+    SELECT c.id, d.id
+    FROM cources c, disciplines d
+    WHERE d.name IN ('ОВП-1', 'ОВП-2', 'ОВП-3', 'ТП', 'ОВП-4')
+      AND c.name IN ('ИПБ', 'АСО');
+
+    -- Специальные дисциплины для ИПБ
+    INSERT INTO discipline_cources (cource_id, discipline_id)
+    SELECT c.id, d.id
+    FROM cources c, disciplines d
+    WHERE c.name = 'ИПБ' 
+      AND d.name IN ('ТСП ИПБ-1', 'ТСП ИПБ-2', 'ВСП ИПБ-1', 'ВСП ИПБ-2');
+
+    -- Специальные дисциплины для АСО
+    INSERT INTO discipline_cources (cource_id, discipline_id)
+    SELECT c.id, d.id
+    FROM cources c, disciplines d
+    WHERE c.name = 'АСО' 
+      AND d.name IN ('ТСП АСО-1', 'ТСП АСО-2', 'ВСП АСО-1', 'ВСП АСО-2');
+
+    -- ============================================================================
+    -- 9. СОЗДАНИЕ ЗАНЯТИЙ (через функцию)
+    -- ============================================================================
+    
+    -- Общие дисциплины
+    PERFORM create_lessons_for_discipline('ОВП-1', FALSE, v_admin_id);
+    PERFORM create_lessons_for_discipline('ОВП-2', FALSE, v_admin_id);
+    PERFORM create_lessons_for_discipline('ОВП-3', FALSE, v_admin_id);
+    PERFORM create_lessons_for_discipline('ТП', FALSE, v_admin_id);
+    PERFORM create_lessons_for_discipline('ОВП-4', FALSE, v_admin_id);
+    
+    -- ТСП дисциплины
+    PERFORM create_lessons_for_discipline('ТСП ИПБ-1', FALSE, v_admin_id);
+    PERFORM create_lessons_for_discipline('ТСП ИПБ-2', FALSE, v_admin_id);
+    PERFORM create_lessons_for_discipline('ТСП АСО-1', FALSE, v_admin_id);
+    PERFORM create_lessons_for_discipline('ТСП АСО-2', FALSE, v_admin_id);
+    
+    -- ВСП дисциплины (с расширенной структурой)
+    PERFORM create_lessons_for_discipline('ВСП ИПБ-1', TRUE, v_admin_id);
+    PERFORM create_lessons_for_discipline('ВСП ИПБ-2', TRUE, v_admin_id);
+    PERFORM create_lessons_for_discipline('ВСП АСО-1', TRUE, v_admin_id);
+    PERFORM create_lessons_for_discipline('ВСП АСО-2', TRUE, v_admin_id);
+
+    -- ============================================================================
+    -- 10. СОЗДАНИЕ ТЕКСТОВЫХ МАТЕРИАЛОВ
+    -- ============================================================================
+    
+    INSERT INTO material_texts (lesson_id, order_number, title, material_text)
+    SELECT 
+        l.id,
+        1,
+        'Теоретический материал: ' || l.name,
+        '<h1>' || l.name || '</h1>' ||
+        '<p>Это содержимое теоретического материала для занятия "' || l.name || 
+        '". Материал включает специализированные разделы, соответствующие направлению подготовки.</p>' ||
+        '<h2>Основные вопросы темы:</h2>' ||
+        '<ul>' ||
+        '<li>Введение в тему занятия</li>' ||
+        '<li>Ключевые понятия и определения</li>' ||
+        '<li>Основные принципы и методы</li>' ||
+        '<li>Практическое применение</li>' ||
+        '<li>Контрольные вопросы для самопроверки</li>' ||
+        '</ul>'
+    FROM lessons l;
+
+    -- ============================================================================
+    -- 11. СОЗДАНИЕ ССЫЛОК
+    -- ============================================================================
+    
+    INSERT INTO material_links (lesson_id, link_type, url, title, description)
+    SELECT 
+        l.id,
+        CASE 
+            WHEN l.lesson_type = 'group' THEN 'test_module'
+            WHEN l.lesson_type = 'theory' THEN 'internal_library'
+            ELSE 'external'
+        END,
+        CASE 
+            WHEN l.lesson_type = 'group' THEN '/tests/' || l.id::text || '/start'
+            WHEN l.lesson_type = 'theory' THEN '/library/disciplines/' || l.discipline_id::text
+            ELSE 'https://encyclopedia.mil.ru/' || l.id::text
+        END,
+        CASE 
+            WHEN l.lesson_type = 'group' THEN 'Тестирование по теме: ' || l.name
+            WHEN l.lesson_type = 'theory' THEN 'Библиотека материалов: ' || l.name
+            ELSE 'Дополнительные материалы: ' || l.name
+        END,
+        CASE 
+            WHEN l.lesson_type = 'group' THEN 'Пройти тест для проверки знаний'
+            WHEN l.lesson_type = 'theory' THEN 'Учебные пособия и методические материалы'
+            ELSE 'Внешние источники и справочная информация'
+        END
+    FROM lessons l;
+
+    -- ============================================================================
+    -- 12. СОЗДАНИЕ ПРИКРЕПЛЕННЫХ ФАЙЛОВ
+    -- ============================================================================
+    
+    INSERT INTO material_attachments (lesson_id, file_name, file_type, file_path, file_size, uploaded_by)
+    SELECT 
+        l.id,
+        CASE l.lesson_type
+            WHEN 'theory' THEN 'lecture_' || l.id::text || '.pdf'
+            WHEN 'practics' THEN 'practical_workshop_' || l.id::text || '.pdf'
+            ELSE 'group_materials_' || l.id::text || '.pdf'
+        END as file_name,
+        'application/pdf' as file_type,
+        '/storage/lessons/' || l.id::text || '/materials.pdf',
+        1048576 + (l.id % 5) * 512000,
+        v_admin_id
+    FROM lessons l
+    UNION ALL
+    SELECT 
+        l.id,
+        'presentation_' || l.id::text || '.pptx' as file_name,
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation' as file_type,
+        '/storage/lessons/' || l.id::text || '/presentation.pptx',
+        2097152 + (l.id % 3) * 1024000,
+        v_admin_id
+    FROM lessons l
+    WHERE l.lesson_type IN ('theory', 'practics');
+    
+END $$;
+
+-- ============================================================================
+-- 13. УДАЛЕНИЕ ВРЕМЕННОЙ ФУНКЦИИ (опционально)
+-- ============================================================================
+
+DROP FUNCTION IF EXISTS create_lessons_for_discipline(VARCHAR, BOOLEAN, INTEGER);
 
 -- ============================================================================
 -- ВЫВОД СТАТИСТИКИ ПО ЗАПОЛНЕННЫМ ДАННЫМ
@@ -209,119 +440,60 @@ WHERE l.lesson_type IN ('theory', 'practics');
 
 SELECT 'Направления подготовки', COUNT(*) from cources
 UNION ALL
+SELECT 'Связи направлений с дисциплинами', COUNT(*) FROM discipline_cources
+UNION ALL
 SELECT 'Дисциплины', COUNT(*) FROM disciplines
 UNION ALL
 SELECT 'Взводы', COUNT(*) FROM platoons
 UNION ALL
 SELECT 'Пользователи', COUNT(*) FROM users
 UNION ALL
-SELECT 'Преподаватели', COUNT(*) FROM users WHERE role = 'teacher'
+SELECT 'Администратор', COUNT(*) FROM users WHERE role = 'teacher'
 UNION ALL
 SELECT 'Студенты', COUNT(*) FROM users WHERE role = 'student'
 UNION ALL
 SELECT 'Занятия', COUNT(*) FROM lessons
 UNION ALL
+SELECT 'Текстовые материалы', COUNT(*) FROM material_texts
+UNION ALL
+SELECT 'Ссылки', COUNT(*) FROM material_links
+UNION ALL
 SELECT 'Прикрепленные файлы', COUNT(*) FROM material_attachments;
 
 -- ============================================================================
--- ПРОВЕРКА СВЯЗЕЙ С НОВОЙ СТРУКТУРОЙ
+-- ПРОВЕРКА СВЯЗЕЙ
 -- ============================================================================
 
--- 1. Проверяем привязку взводов к направлениям
+-- Проверка распределения студентов по взводам и направлениям
 SELECT 
-    p.id as platoon_id,
+    c.name as direction,
+    p.id as platoon,
     p.year_of_study,
-    c.name as cource_name,
-    COUNT(u.id) as students_count
-FROM platoons p
-JOIN cources c ON p.cource_id = c.id
+    COUNT(u.id) as students
+FROM cources c
+JOIN platoons p ON c.id = p.cource_id
 LEFT JOIN users u ON p.id = u.platoon_id AND u.role = 'student'
-GROUP BY p.id, p.year_of_study, c.name
-ORDER BY c.name, p.year_of_study DESC;
+GROUP BY c.name, p.id, p.year_of_study
+ORDER BY c.name, p.year_of_study, p.id;
 
--- 2. Проверяем иерархию направление->дисциплина->занятие->материал
+-- Проверка дисциплин по направлениям
 SELECT 
     c.name as direction,
     d.name as discipline,
-    d.year_of_study as year,
-    l.name as lesson,
-    l.lesson_type as type,
-    COUNT(DISTINCT mt.id) as texts_count,
-    COUNT(DISTINCT ml.id) as links_count,
-    COUNT(DISTINCT ma.id) as attachments_count
+    d.year_of_study
 FROM cources c
-JOIN disciplines d ON d.cource_id = c.id
-JOIN lessons l ON l.discipline_id = d.id
-LEFT JOIN material_texts mt ON mt.lesson_id = l.id
-LEFT JOIN material_links ml ON ml.lesson_id = l.id
-LEFT JOIN material_attachments ma ON ma.lesson_id = l.id
-GROUP BY c.name, d.name, d.year_of_study, l.name, l.lesson_type, l.order_number
-ORDER BY c.name, d.year_of_study, l.order_number;
+JOIN discipline_cources dc ON c.id = dc.cource_id
+JOIN disciplines d ON dc.discipline_id = d.id
+ORDER BY c.name, d.year_of_study, d.name;
 
-
--- ============================================================================
--- ПРИМЕРЫ ЗАПРОСОВ С ПРИВЯЗКОЙ К НАПРАВЛЕНИЯМ
--- ============================================================================
-
--- 1. Получить все занятия для направления АСО
-SELECT 
-    c.name as cource_name,
-    d.name as discipline_name,
-    l.name as lesson_name,
-    l.lesson_type
-FROM cources c
-JOIN disciplines d ON c.id = d.cource_id
-JOIN lessons l ON d.id = l.discipline_id
-WHERE c.name = 'АСО'
-ORDER BY d.year_of_study, l.order_number;
-
--- 2. Получить всех студентов направления ЗИТ
-SELECT 
-    u.first_name,
-    u.last_name,
-    u.patronymic,
-    u.phone_number,
-    p.id as platoon_id,
-    p.year_of_study,
-    c.name as cource_name
-FROM users u
-JOIN platoons p ON u.platoon_id = p.id
-JOIN cources c ON p.cource_id = c.id
-WHERE c.name = 'ЗИТ' AND u.role = 'student'
-ORDER BY p.year_of_study DESC, u.last_name;
-
-
--- 3. Статистика по направлениям
-SELECT 
-    c.name as cource_name,
-    COUNT(DISTINCT p.id) as platoons_count,
-    COUNT(DISTINCT u.id) as students_count,
-    COUNT(DISTINCT d.id) as disciplines_count,
-    COUNT(DISTINCT l.id) as lessons_count
-FROM cources c
-LEFT JOIN platoons p ON c.id = p.cource_id
-LEFT JOIN users u ON p.id = u.platoon_id AND u.role = 'student'
-LEFT JOIN disciplines d ON c.id = d.cource_id
-LEFT JOIN lessons l ON d.id = l.discipline_id
-GROUP BY c.id, c.name
-ORDER BY c.name;
-
-
--- 4. Пример получения всех материалов для конкретного занятия
-SELECT 
-    l.name as lesson_name,
-    l.lesson_type,
-    json_build_object(
-        'texts', (SELECT json_agg(json_build_object('id', mt.id, 'title', mt.title)) 
-                  FROM material_texts mt WHERE mt.lesson_id = l.id),
-        'links', (SELECT json_agg(json_build_object('id', ml.id, 'title', ml.title, 'url', ml.url)) 
-                  FROM material_links ml WHERE ml.lesson_id = l.id),
-        'attachments', (SELECT json_agg(json_build_object('id', ma.id, 'file_name', ma.file_name)) 
-                        FROM material_attachments ma WHERE ma.lesson_id = l.id)
-    ) as materials
+-- Проверка создателя всех занятий (должен быть admin)
+SELECT DISTINCT 
+    u.ldap_uid as created_by_user,
+    COUNT(*) as lessons_count
 FROM lessons l
-WHERE l.id = 1;
+JOIN users u ON l.created_by = u.id
+GROUP BY u.ldap_uid;
 
 -- ============================================================================
 -- КОНЕЦ СКРИПТА ЗАПОЛНЕНИЯ ДАННЫМИ
--- ============================================================================ 
+-- ============================================================================

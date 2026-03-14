@@ -1,8 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+// disciplines/disciplines.service.ts
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { Discipline } from '../entities/discipline.entity';
 import { Course } from '../entities/course.entity';
+import { DisciplineCourse } from '../entities/discipline-course.entity';
 import { Lesson } from '../entities/lesson.entity'; 
 import { DisciplineResponseDto } from './dto/discipline-response';
 import { DisciplinesResponseDto } from './dto/disciplines-response';
@@ -26,11 +28,12 @@ export class DisciplinesService {
     private disciplinesRepository: Repository<Discipline>,
     @InjectRepository(Course)
     private coursesRepository: Repository<Course>,
+    @InjectRepository(DisciplineCourse)
+    private disciplineCourseRepository: Repository<DisciplineCourse>,
     @InjectRepository(Lesson)
     private lessonsRepository: Repository<Lesson>
   ) {}
 
-  
   async getLessonsByDiscipline(
     disciplineId: number, 
     page: number = 1, 
@@ -40,7 +43,6 @@ export class DisciplinesService {
   ): Promise<{ data: LessonResponseDto[]; total: number; page: number; limit: number }> {
     const discipline = await this.disciplinesRepository.findOne({
       where: { id: disciplineId },
-      relations: ['course'],
     });
 
     if (!discipline) {
@@ -58,7 +60,7 @@ export class DisciplinesService {
 
     const [lessons, total] = await this.lessonsRepository.findAndCount({
       where,
-      relations: ['discipline', 'discipline.course', 'createdBy'],
+      relations: ['discipline', 'discipline.courseLinks', 'discipline.courseLinks.course', 'createdBy'],
       skip,
       take: limit,
       order: { orderNumber: 'ASC' },
@@ -124,10 +126,30 @@ export class DisciplinesService {
     const { page, limit, courseId, yearOfStudy, isActive } = options;
     const skip = (page - 1) * limit;
 
+    let disciplineIds: number[] | undefined;
+    
+    // Если указан courseId, сначала получаем ID дисциплин, привязанных к этому курсу
+    if (courseId) {
+      const disciplineCourses = await this.disciplineCourseRepository.find({
+        where: { courseId },
+        select: ['disciplineId'],
+      });
+      disciplineIds = disciplineCourses.map(dc => dc.disciplineId);
+      
+      if (disciplineIds.length === 0) {
+        return {
+          data: [],
+          total: 0,
+          page,
+          limit,
+        };
+      }
+    }
+
     const where: any = {};
     
-    if (courseId !== undefined) {
-      where.courseId = courseId;
+    if (disciplineIds) {
+      where.id = In(disciplineIds);
     }
     
     if (yearOfStudy !== undefined) {
@@ -140,7 +162,7 @@ export class DisciplinesService {
 
     const [disciplines, total] = await this.disciplinesRepository.findAndCount({
       where,
-      relations: ['course', 'createdBy'],
+      relations: ['courseLinks', 'courseLinks.course', 'createdBy'],
       skip,
       take: limit,
       order: { id: 'ASC' },
@@ -157,29 +179,50 @@ export class DisciplinesService {
   }
 
   async create(createDisciplineDto: CreateDisciplineDto, createdByUserId: number): Promise<DisciplineResponseDto> {
-    const course = await this.coursesRepository.findOne({
-      where: { id: createDisciplineDto.course_id },
+    // Проверяем существование всех курсов
+    const courses = await this.coursesRepository.find({
+      where: { id: In(createDisciplineDto.course_ids) },
     });
 
-    if (!course) {
-      throw new NotFoundException('Курс не найден');
+    if (courses.length !== createDisciplineDto.course_ids.length) {
+      const foundIds = courses.map(c => c.id);
+      const missingIds = createDisciplineDto.course_ids.filter(id => !foundIds.includes(id));
+      throw new NotFoundException(`Направления подготовки с ID ${missingIds.join(', ')} не найдены`);
     }
 
+    // Проверяем уникальность названия дисциплины
+    const existingDiscipline = await this.disciplinesRepository.findOne({
+      where: { name: createDisciplineDto.name },
+    });
+
+    if (existingDiscipline) {
+      throw new BadRequestException('Дисциплина с таким названием уже существует');
+    }
+
+    // Создаем дисциплину
     const discipline = this.disciplinesRepository.create({
-      courseId: createDisciplineDto.course_id,
       name: createDisciplineDto.name,
       description: createDisciplineDto.description,
       yearOfStudy: createDisciplineDto.year_of_study || 1,
       isActive: true,
       createdBy: { id: createdByUserId } as any,
-      course: course,
     });
 
     const savedDiscipline = await this.disciplinesRepository.save(discipline);
+
+    // Создаем связи со всеми курсами
+    const disciplineCourses = createDisciplineDto.course_ids.map(courseId => 
+      this.disciplineCourseRepository.create({
+        courseId,
+        disciplineId: savedDiscipline.id,
+      })
+    );
+
+    await this.disciplineCourseRepository.save(disciplineCourses);
     
     const disciplineWithRelations = await this.disciplinesRepository.findOne({
       where: { id: savedDiscipline.id },
-      relations: ['course', 'createdBy'],
+      relations: ['courseLinks', 'courseLinks.course', 'createdBy'],
     });
 
     return this.toResponseDto(disciplineWithRelations);
@@ -188,7 +231,7 @@ export class DisciplinesService {
   async findOne(id: number): Promise<DisciplineResponseDto> {
     const discipline = await this.disciplinesRepository.findOne({
       where: { id },
-      relations: ['course', 'createdBy'],
+      relations: ['courseLinks', 'courseLinks.course', 'createdBy'],
     });
 
     if (!discipline) {
@@ -201,14 +244,23 @@ export class DisciplinesService {
   async update(id: number, updateDisciplineDto: UpdateDisciplineDto): Promise<DisciplineResponseDto> {
     const discipline = await this.disciplinesRepository.findOne({
       where: { id },
-      relations: ['course', 'createdBy'],
+      relations: ['courseLinks', 'courseLinks.course', 'createdBy'],
     });
 
     if (!discipline) {
       throw new NotFoundException('Дисциплина не найдена');
     }
 
+    // Обновляем поля
     if (updateDisciplineDto.name !== undefined) {
+      if (updateDisciplineDto.name !== discipline.name) {
+        const existingDiscipline = await this.disciplinesRepository.findOne({
+          where: { name: updateDisciplineDto.name },
+        });
+        if (existingDiscipline) {
+          throw new BadRequestException('Дисциплина с таким названием уже существует');
+        }
+      }
       discipline.name = updateDisciplineDto.name;
     }
 
@@ -224,11 +276,97 @@ export class DisciplinesService {
       discipline.isActive = updateDisciplineDto.is_active;
     }
 
+    // Если передан массив course_ids, обновляем связи
+    if (updateDisciplineDto.course_ids) {
+      const courses = await this.coursesRepository.find({
+        where: { id: In(updateDisciplineDto.course_ids) },
+      });
+
+      if (courses.length !== updateDisciplineDto.course_ids.length) {
+        const foundIds = courses.map(c => c.id);
+        const missingIds = updateDisciplineDto.course_ids.filter(id => !foundIds.includes(id));
+        throw new NotFoundException(`Направления подготовки с ID ${missingIds.join(', ')} не найдены`);
+      }
+
+      await this.disciplineCourseRepository.delete({ disciplineId: id });
+
+      const newDisciplineCourses = updateDisciplineDto.course_ids.map(courseId => 
+        this.disciplineCourseRepository.create({
+          courseId,
+          disciplineId: id,
+        })
+      );
+
+      await this.disciplineCourseRepository.save(newDisciplineCourses);
+    }
+
     const updatedDiscipline = await this.disciplinesRepository.save(discipline);
-    return this.toResponseDto(updatedDiscipline);
+    
+    const disciplineWithRelations = await this.disciplinesRepository.findOne({
+      where: { id: updatedDiscipline.id },
+      relations: ['courseLinks', 'courseLinks.course', 'createdBy'],
+    });
+
+    return this.toResponseDto(disciplineWithRelations);
+  }
+
+  async addCourseToDiscipline(disciplineId: number, courseId: number): Promise<void> {
+    const discipline = await this.disciplinesRepository.findOne({
+      where: { id: disciplineId },
+    });
+
+    if (!discipline) {
+      throw new NotFoundException('Дисциплина не найдена');
+    }
+
+    const course = await this.coursesRepository.findOne({
+      where: { id: courseId },
+    });
+
+    if (!course) {
+      throw new NotFoundException('Направление подготовки не найдено');
+    }
+
+    const existingLink = await this.disciplineCourseRepository.findOne({
+      where: { disciplineId, courseId },
+    });
+
+    if (existingLink) {
+      throw new BadRequestException('Дисциплина уже привязана к этому направлению');
+    }
+
+    const disciplineCourse = this.disciplineCourseRepository.create({
+      disciplineId,
+      courseId,
+    });
+
+    await this.disciplineCourseRepository.save(disciplineCourse);
+  }
+
+  async removeCourseFromDiscipline(disciplineId: number, courseId: number): Promise<void> {
+    const linksCount = await this.disciplineCourseRepository.count({
+      where: { disciplineId },
+    });
+
+    if (linksCount <= 1) {
+      throw new BadRequestException('Дисциплина должна быть привязана хотя бы к одному направлению подготовки');
+    }
+
+    const result = await this.disciplineCourseRepository.delete({
+      disciplineId,
+      courseId,
+    });
+
+    if (result.affected === 0) {
+      throw new NotFoundException('Связь между дисциплиной и направлением не найдена');
+    }
   }
 
   private toResponseDto(discipline: Discipline): DisciplineResponseDto {
+    const courses = discipline.courseLinks
+      ?.map(link => link.course)
+      .filter(course => course !== null) || [];
+
     return {
       id: discipline.id,
       name: discipline.name,
@@ -236,7 +374,7 @@ export class DisciplinesService {
       year_of_study: discipline.yearOfStudy,
       is_active: discipline.isActive,
       created_by: discipline.createdBy?.id || null,
-      course: this.courseToResponseDto(discipline.course),
+      courses: courses.map(course => this.courseToResponseDto(course)),
       created_at: discipline.createdAt,
       updated_at: discipline.updatedAt,
     };

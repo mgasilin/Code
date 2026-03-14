@@ -46,7 +46,16 @@ export class LessonsService {
 
     const [lessons, total] = await this.lessonsRepository.findAndCount({
       where,
-      relations: ['discipline', 'discipline.course', 'createdBy', 'links', 'texts', 'attachments'],
+      relations: [
+        'discipline', 
+        'discipline.courseLinks', 
+        'discipline.courseLinks.course', 
+        'discipline.createdBy', 
+        'createdBy', 
+        'links', 
+        'texts', 
+        'attachments'
+      ],
       skip,
       take: limit,
       order: { orderNumber: 'ASC' },
@@ -65,13 +74,14 @@ export class LessonsService {
   async create(createLessonDto: CreateLessonDto, createdByUserId: number): Promise<LessonResponseDto> {
     const discipline = await this.disciplinesRepository.findOne({
       where: { id: createLessonDto.discipline_id },
-      relations: ['course'],
+      relations: ['courseLinks', 'courseLinks.course', 'createdBy'],
     });
 
     if (!discipline) {
       throw new NotFoundException('Дисциплина не найдена');
     }
 
+    // Проверяем уникальность order_number в рамках дисциплины
     const existingLesson = await this.lessonsRepository.findOne({
       where: {
         disciplineId: createLessonDto.discipline_id,
@@ -91,14 +101,19 @@ export class LessonsService {
       lessonType: createLessonDto.lesson_type,
       isActive: true,
       createdBy: { id: createdByUserId } as any,
-      discipline: discipline,
     });
 
     const savedLesson = await this.lessonsRepository.save(lesson);
     
     const lessonWithRelations = await this.lessonsRepository.findOne({
       where: { id: savedLesson.id },
-      relations: ['discipline', 'discipline.course', 'createdBy'],
+      relations: [
+        'discipline', 
+        'discipline.courseLinks', 
+        'discipline.courseLinks.course', 
+        'discipline.createdBy', 
+        'createdBy'
+      ],
     });
 
     return this.toResponseDto(lessonWithRelations);
@@ -107,7 +122,16 @@ export class LessonsService {
   async findOne(id: number): Promise<LessonResponseDto> {
     const lesson = await this.lessonsRepository.findOne({
       where: { id },
-      relations: ['discipline', 'discipline.course', 'createdBy', 'links', 'texts', 'attachments'],
+      relations: [
+        'discipline', 
+        'discipline.courseLinks', 
+        'discipline.courseLinks.course', 
+        'discipline.createdBy', 
+        'createdBy', 
+        'links', 
+        'texts', 
+        'attachments'
+      ],
     });
 
     if (!lesson) {
@@ -120,13 +144,20 @@ export class LessonsService {
   async update(id: number, updateLessonDto: UpdateLessonDto): Promise<LessonResponseDto> {
     const lesson = await this.lessonsRepository.findOne({
       where: { id },
-      relations: ['discipline', 'discipline.course', 'createdBy'],
+      relations: [
+        'discipline', 
+        'discipline.courseLinks', 
+        'discipline.courseLinks.course', 
+        'discipline.createdBy', 
+        'createdBy'
+      ],
     });
 
     if (!lesson) {
       throw new NotFoundException('Занятие не найдено');
     }
 
+    // Если меняется order_number, проверяем уникальность
     if (updateLessonDto.order_number !== undefined && updateLessonDto.order_number !== lesson.orderNumber) {
       const existingLesson = await this.lessonsRepository.findOne({
         where: {
@@ -138,14 +169,11 @@ export class LessonsService {
       if (existingLesson && existingLesson.id !== id) {
         throw new ConflictException('Занятие с таким порядковым номером уже существует в дисциплине');
       }
+      lesson.orderNumber = updateLessonDto.order_number;
     }
 
     if (updateLessonDto.name !== undefined) {
       lesson.name = updateLessonDto.name;
-    }
-
-    if (updateLessonDto.order_number !== undefined) {
-      lesson.orderNumber = updateLessonDto.order_number;
     }
 
     if (updateLessonDto.description !== undefined) {
@@ -161,7 +189,66 @@ export class LessonsService {
     }
 
     const updatedLesson = await this.lessonsRepository.save(lesson);
-    return this.toResponseDto(updatedLesson);
+    
+    const lessonWithRelations = await this.lessonsRepository.findOne({
+      where: { id: updatedLesson.id },
+      relations: [
+        'discipline', 
+        'discipline.courseLinks', 
+        'discipline.courseLinks.course', 
+        'discipline.createdBy', 
+        'createdBy'
+      ],
+    });
+
+    return this.toResponseDto(lessonWithRelations);
+  }
+
+  async getLessonsByDisciplineAndYear(disciplineId: number, yearOfStudy: number): Promise<LessonResponseDto[]> {
+    const discipline = await this.disciplinesRepository.findOne({
+      where: { id: disciplineId, yearOfStudy },
+    });
+
+    if (!discipline) {
+      throw new NotFoundException('Дисциплина с указанным годом обучения не найдена');
+    }
+
+    const lessons = await this.lessonsRepository.find({
+      where: { 
+        disciplineId,
+        isActive: true 
+      },
+      relations: [
+        'discipline', 
+        'discipline.courseLinks', 
+        'discipline.courseLinks.course', 
+        'discipline.createdBy', 
+        'createdBy'
+      ],
+      order: { orderNumber: 'ASC' },
+    });
+
+    return lessons.map(lesson => this.toResponseDto(lesson));
+  }
+
+  async getLessonsCountByDiscipline(disciplineId: number): Promise<number> {
+    return this.lessonsRepository.count({
+      where: { disciplineId, isActive: true },
+    });
+  }
+
+  async reorderLessons(disciplineId: number, lessonOrders: { id: number; order_number: number }[]): Promise<void> {
+    const discipline = await this.disciplinesRepository.findOne({
+      where: { id: disciplineId },
+    });
+
+    if (!discipline) {
+      throw new NotFoundException('Дисциплина не найдена');
+    }
+
+    for (const item of lessonOrders) {
+      await this.lessonsRepository.update(item.id, { orderNumber: item.order_number });
+    }
   }
 
   private toResponseDto(lesson: Lesson): LessonResponseDto {
@@ -173,7 +260,7 @@ export class LessonsService {
       lesson_type: lesson.lessonType,
       is_active: lesson.isActive,
       created_by: lesson.createdBy?.id || null,
-      discipline: this.disciplineToResponseDto(lesson.discipline),
+      discipline: lesson.discipline ? this.disciplineToResponseDto(lesson.discipline) : null,
 
       links: lesson.links?.map(link => ({
         id: link.id,
@@ -211,6 +298,11 @@ export class LessonsService {
   }
 
   private disciplineToResponseDto(discipline: Discipline): DisciplineResponseDto {
+    // Получаем все курсы из связей
+    const courses = discipline.courseLinks
+      ?.map(link => link.course)
+      .filter(course => course !== null) || [];
+
     return {
       id: discipline.id,
       name: discipline.name,
@@ -218,14 +310,14 @@ export class LessonsService {
       year_of_study: discipline.yearOfStudy,
       is_active: discipline.isActive,
       created_by: discipline.createdBy?.id || null,
-      course: {
-        id: discipline.course.id,
-        name: discipline.course.name,
-        description: discipline.course.description,
-        is_active: discipline.course.isActive,
-        created_at: discipline.course.createdAt,
-        updated_at: discipline.course.updatedAt,
-      },
+      courses: courses.map(course => ({
+        id: course.id,
+        name: course.name,
+        description: course.description,
+        is_active: course.isActive,
+        created_at: course.createdAt,
+        updated_at: course.updatedAt,
+      })),
       created_at: discipline.createdAt,
       updated_at: discipline.updatedAt,
     };

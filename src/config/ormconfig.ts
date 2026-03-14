@@ -3,6 +3,7 @@ import { User } from '../entities/user.entity';
 import { Platoon } from '../entities/platoon.entity';
 import { RefreshToken } from '../entities/refresh-token.entity';
 import { Course } from '../entities/course.entity';
+import { DisciplineCourse } from '../entities/discipline-course.entity';
 import { Discipline } from '../entities/discipline.entity';
 import { Lesson } from '../entities/lesson.entity';
 import {MaterialLink} from '../entities/material-link.entity'
@@ -28,6 +29,7 @@ export const ormConfig: TypeOrmModuleOptions = {
     MaterialLink,
     MaterialText,
     MaterialAttachment,
+    DisciplineCourse
   ],
   synchronize: false,
   logging: true,

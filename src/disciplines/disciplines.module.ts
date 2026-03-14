@@ -4,11 +4,12 @@ import { DisciplinesController } from './disciplines.controller';
 import { DisciplinesService } from './disciplines.service';
 import { Discipline } from '../entities/discipline.entity';
 import { Course } from '../entities/course.entity';
+import { DisciplineCourse } from '../entities/discipline-course.entity';
 import { Lesson } from '../entities/lesson.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Discipline, Course, Lesson]),
+    TypeOrmModule.forFeature([Discipline, Course, Lesson, DisciplineCourse]),
   ],
   controllers: [DisciplinesController],
   providers: [DisciplinesService],
