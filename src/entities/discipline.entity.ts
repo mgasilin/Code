@@ -1,6 +1,6 @@
 import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, OneToMany } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
-import { Course } from './course.entity';
+import { DisciplineCourse } from './discipline-course.entity';
 import { Lesson } from './lesson.entity';
 import { User } from './user.entity';
 
@@ -10,10 +10,6 @@ export class Discipline {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ApiProperty({ example: 1, description: 'ID курса' })
-  @Column({ name: 'cource_id' }) 
-  courseId: number;
-
   @ApiProperty({ example: 'Базы данных', description: 'Название дисциплины' })
   @Column()
   name: string;
@@ -22,7 +18,7 @@ export class Discipline {
   @Column({ type: 'text', nullable: true })
   description: string;
 
-  @ApiProperty({ example: 2, description: 'Год обучения (1-3)' })
+  @ApiProperty({ example: 2, description: 'Год обучения (1-5)' })
   @Column({ name: 'year_of_study' })
   yearOfStudy: number;
 
@@ -43,9 +39,8 @@ export class Discipline {
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 
-  @ManyToOne(() => Course, course => course.disciplines)
-  @JoinColumn({ name: 'cource_id' }) 
-  course: Course;
+  @OneToMany(() => DisciplineCourse, disciplineCourse => disciplineCourse.discipline)
+  courseLinks: DisciplineCourse[];
 
   @OneToMany(() => Lesson, lesson => lesson.discipline)
   lessons: Lesson[];

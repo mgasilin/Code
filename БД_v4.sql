@@ -190,7 +190,6 @@ DROP TABLE IF EXISTS disciplines;
 
 CREATE TABLE disciplines (
     id                    SERIAL PRIMARY KEY,
-    cource_id INTEGER NOT NULL REFERENCES cources(id) ON DELETE CASCADE,
     name                  VARCHAR(255) NOT NULL,
     description           TEXT,
     year_of_study         INTEGER CHECK (year_of_study BETWEEN 1 AND 5),
@@ -200,8 +199,8 @@ CREATE TABLE disciplines (
     is_active             BOOLEAN DEFAULT TRUE
 );
 
+
 COMMENT ON TABLE disciplines IS 'Учебные дисциплины в рамках направлений подготовки';
-COMMENT ON COLUMN disciplines.cource_id IS 'Ссылка на направление подготовки';
 COMMENT ON COLUMN disciplines.name IS 'Название дисциплины';
 COMMENT ON COLUMN disciplines.description IS 'Описание дисциплины и её содержания';
 COMMENT ON COLUMN disciplines.year_of_study IS 'Год обучения, на котором изучается дисциплина (1-5)';
@@ -211,9 +210,20 @@ COMMENT ON COLUMN disciplines.updated_at IS 'Дата и время послед
 COMMENT ON COLUMN disciplines.is_active IS 'Флаг активности дисциплины';
 
 -- Индексы для таблицы disciplines
-CREATE INDEX idx_disciplines_cource ON disciplines(cource_id);
 CREATE INDEX idx_disciplines_year ON disciplines(year_of_study) WHERE year_of_study IS NOT NULL;
 CREATE INDEX idx_disciplines_active ON disciplines(is_active);
+
+DROP TABLE IF EXISTS discipline_cources;
+create table discipline_cources (
+	id serial primary key,
+	cource_id INTEGER NOT NULL REFERENCES cources(id) ON DELETE CASCADE,
+	discipline_id INTEGER NOT NULL references disciplines(id) ON DELETE CASCADE
+);
+
+COMMENT ON TABLE discipline_cources IS 'Связь между направлениями подготовки и их дисциплинами';
+COMMENT ON column discipline_cources.id IS 'ID связи между направлениями подготовки и их дисциплинами';
+COMMENT ON column discipline_cources.cource_id IS 'ID направления подготовки';
+COMMENT ON column discipline_cources.discipline_id IS 'ID дисциплины';
 
 -- ============================================================================
 -- 6. ТАБЛИЦА: lessons (занятия)
@@ -232,10 +242,7 @@ CREATE TABLE lessons (
     created_by    INTEGER REFERENCES users(id) ON DELETE SET NULL,
     created_at    TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at    TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    is_active     BOOLEAN DEFAULT TRUE,
-    
-    -- Обеспечиваем уникальность порядка занятий в рамках дисциплины
-    CONSTRAINT unique_lesson_order UNIQUE (discipline_id, order_number)
+    is_active     BOOLEAN DEFAULT TRUE
 );
 
 COMMENT ON TABLE lessons IS 'Занятия (уроки) в рамках учебной дисциплины';
@@ -289,7 +296,7 @@ CREATE TABLE material_attachments (
     id          SERIAL PRIMARY KEY,
     lesson_id   INTEGER NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
     file_name   VARCHAR(255) NOT NULL,
-    file_type   VARCHAR(50),
+    file_type   VARCHAR(100),
     file_path   VARCHAR(500) NOT NULL,
     file_size   BIGINT CHECK (file_size > 0),
     uploaded_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
@@ -371,67 +378,6 @@ CREATE TRIGGER update_lessons_updated_at BEFORE UPDATE ON lessons
 -- ============================================================================
 -- ПРЕДСТАВЛЕНИЯ (VIEWS) ДЛЯ УДОБСТВА РАБОТЫ
 -- ============================================================================
-
--- Представление для отображения полной учебной иерархии
-CREATE OR REPLACE VIEW v_lessons_hierarchy AS
-SELECT 
-    l.id AS lesson_id,
-    l.name AS lesson_name,
-    l.order_number,
-    l.lesson_type,
-    d.id AS discipline_id,
-    d.name AS discipline_name,
-    c.id AS cource_id,
-    c.name AS cource_name
-FROM lessons l
-JOIN disciplines d ON l.discipline_id = d.id
-JOIN cources c ON d.cource_id = c.id
-WHERE l.is_active = TRUE 
-  AND d.is_active = TRUE 
-  AND c.is_active = TRUE;
-
-COMMENT ON VIEW v_lessons_hierarchy IS 'Полная иерархия учебных занятий с привязкой к дисциплинам и направлениям подготовки';
-
--- Представление для отображения взводов с их направлениями подготовки
-CREATE OR REPLACE VIEW v_platoons_with_cources AS
-SELECT 
-    p.id AS platoon_id,
-    p.year_of_study,
-    p.description AS platoon_description,
-    p.created_at AS platoon_created_at,
-    p.is_active AS platoon_active,
-    c.id AS cource_id,
-    c.name AS cource_name,
-    c.description AS cource_description,
-    c.is_active AS cource_active
-FROM platoons p
-JOIN cources c ON p.cource_id = c.id
-WHERE p.is_active = TRUE AND c.is_active = TRUE;
-
-COMMENT ON VIEW v_platoons_with_cources IS 'Взводы с информацией о связанных направлениях подготовки';
-
--- Представление для отображения студентов с информацией о взводе и направлении
-CREATE OR REPLACE VIEW v_students_info AS
-SELECT 
-    u.id AS student_id,
-    u.first_name,
-    u.last_name,
-    u.patronymic,
-    u.phone_number,
-    u.email,
-    u.platoon_id,
-    p.year_of_study,
-    c.id AS cource_id,
-    c.name AS cource_name
-FROM users u
-LEFT JOIN platoons p ON u.platoon_id = p.id
-LEFT JOIN cources c ON p.cource_id = c.id
-WHERE u.role = 'student' 
-  AND u.is_active = TRUE 
-  AND p.is_active = TRUE 
-  AND c.is_active = TRUE;
-
-COMMENT ON VIEW v_students_info IS 'Студенты с полной информацией о взводе и направлении подготовки';
 
 -- ============================================================================
 -- ВЫВОД ИНФОРМАЦИИ О СОЗДАННОЙ СТРУКТУРЕ БАЗЫ ДАННЫХ

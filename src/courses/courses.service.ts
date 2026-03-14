@@ -1,19 +1,20 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+// courses/courses.service.ts
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { Course } from '../entities/course.entity';
 import { Discipline } from '../entities/discipline.entity';
+import { DisciplineCourse } from '../entities/discipline-course.entity';
 import { CourseResponseDto } from './dto/course-response';
 import { CoursesResponseDto } from './dto/courses-response';
 import { CreateCourseDto } from './dto/create-course';
 import { UpdateCourseDto } from './dto/update-course';
 import { DisciplineResponseDto } from '../disciplines/dto/discipline-response';
 
-
 interface FindAllOptions {
   page: number;
   limit: number;
-  isActive?: boolean;
+  isActive: boolean;
 }
 
 @Injectable()
@@ -23,8 +24,9 @@ export class CoursesService {
     private coursesRepository: Repository<Course>,
     @InjectRepository(Discipline)
     private disciplinesRepository: Repository<Discipline>,
+    @InjectRepository(DisciplineCourse)
+    private disciplineCourseRepository: Repository<DisciplineCourse>,
   ) {}
-
 
   async findAll(options: FindAllOptions): Promise<CoursesResponseDto> {
     const { page, limit, isActive } = options;
@@ -59,11 +61,15 @@ export class CoursesService {
       where: { name: createCourseDto.name },
     });
 
+    if (existingCourse) {
+      throw new BadRequestException('Направление подготовки с таким названием уже существует');
+    }
+
     const course = this.coursesRepository.create({
       name: createCourseDto.name,
       description: createCourseDto.description,
       isActive: true,
-      createdBy: { id: createdByUserId } as any, 
+      createdBy: { id: createdByUserId } as any,
     });
 
     const savedCourse = await this.coursesRepository.save(course);
@@ -100,6 +106,14 @@ export class CoursesService {
     }
 
     if (updateCourseDto.name !== undefined) {
+      if (updateCourseDto.name !== course.name) {
+        const existingCourse = await this.coursesRepository.findOne({
+          where: { name: updateCourseDto.name },
+        });
+        if (existingCourse) {
+          throw new BadRequestException('Направление подготовки с таким названием уже существует');
+        }
+      }
       course.name = updateCourseDto.name;
     }
 
@@ -126,35 +140,251 @@ export class CoursesService {
     });
 
     if (!course) {
-      throw new NotFoundException('Курс не найден');
+      throw new NotFoundException('Направление подготовки не найдено');
     }
 
     const skip = (page - 1) * limit;
-    const where: any = {
-      courseId: courseId
-    };
 
-    const [disciplines, total] = await this.disciplinesRepository.findAndCount({
-      where,
-      relations: ['course'],
+    const [disciplineCourses, total] = await this.disciplineCourseRepository.findAndCount({
+      where: { courseId },
+      relations: [
+        'discipline', 
+        'discipline.courseLinks', 
+        'discipline.courseLinks.course', 
+        'discipline.createdBy'
+      ],
       skip,
       take: limit,
-      order: { id: 'ASC' },
     });
 
-    console.log(disciplines, courseId, where)
+    console.log(`Найдено связей для курса ${courseId}:`, disciplineCourses.length);
 
-    const disciplinesDto = disciplines.map(discipline => this.disciplineToResponseDto(discipline));
+    let disciplines = disciplineCourses
+      .map(dc => dc.discipline)
+      .filter(discipline => discipline !== null);
+
+    console.log(`Получено дисциплин:`, disciplines.length);
+
+    const disciplinesDto = disciplines.map(discipline => 
+      this.disciplineToResponseDto(discipline)
+    );
 
     return {
       data: disciplinesDto,
-      total,
+      total: disciplines.length,
       page,
       limit,
     };
   }
 
+  async getAllDisciplinesByCourse(courseId: number): Promise<DisciplineResponseDto[]> {
+    const course = await this.coursesRepository.findOne({
+      where: { id: courseId },
+    });
+
+    if (!course) {
+      throw new NotFoundException('Направление подготовки не найдено');
+    }
+
+    const disciplineCourses = await this.disciplineCourseRepository.find({
+      where: { courseId },
+      relations: [
+        'discipline', 
+        'discipline.courseLinks', 
+        'discipline.courseLinks.course', 
+        'discipline.createdBy'
+      ],
+    });
+
+    const disciplines = disciplineCourses
+      .map(dc => dc.discipline)
+      .filter(discipline => discipline !== null);
+
+    return disciplines.map(discipline => this.disciplineToResponseDto(discipline));
+  }
+
+  async addDisciplineToCourse(courseId: number, disciplineId: number): Promise<void> {
+    const course = await this.coursesRepository.findOne({
+      where: { id: courseId },
+    });
+
+    if (!course) {
+      throw new NotFoundException('Направление подготовки не найдено');
+    }
+
+    const discipline = await this.disciplinesRepository.findOne({
+      where: { id: disciplineId },
+    });
+
+    if (!discipline) {
+      throw new NotFoundException('Дисциплина не найдена');
+    }
+
+    // Проверяем, не существует ли уже такая связь
+    const existingLink = await this.disciplineCourseRepository.findOne({
+      where: { courseId, disciplineId },
+    });
+
+    if (existingLink) {
+      throw new BadRequestException('Дисциплина уже привязана к этому направлению');
+    }
+
+    const disciplineCourse = this.disciplineCourseRepository.create({
+      courseId,
+      disciplineId,
+    });
+
+    await this.disciplineCourseRepository.save(disciplineCourse);
+  }
+
+  async removeDisciplineFromCourse(courseId: number, disciplineId: number): Promise<void> {
+    // Проверяем, что у дисциплины останется хотя бы один курс после удаления
+    const linksCount = await this.disciplineCourseRepository.count({
+      where: { disciplineId },
+    });
+
+    if (linksCount <= 1) {
+      throw new BadRequestException(
+        'Нельзя удалить единственную связь дисциплины. Дисциплина должна быть привязана хотя бы к одному направлению подготовки'
+      );
+    }
+
+    const result = await this.disciplineCourseRepository.delete({
+      courseId,
+      disciplineId,
+    });
+
+    if (result.affected === 0) {
+      throw new NotFoundException('Связь между направлением и дисциплиной не найдена');
+    }
+  }
+
+  async getCoursesByDiscipline(disciplineId: number): Promise<CourseResponseDto[]> {
+    const discipline = await this.disciplinesRepository.findOne({
+      where: { id: disciplineId },
+    });
+
+    if (!discipline) {
+      throw new NotFoundException('Дисциплина не найдена');
+    }
+
+    const disciplineCourses = await this.disciplineCourseRepository.find({
+      where: { disciplineId },
+      relations: ['course'],
+    });
+
+    return disciplineCourses.map(dc => this.toResponseDto(dc.course));
+  }
+
+  async getDisciplinesCountByCourse(courseId: number): Promise<number> {
+    return this.disciplineCourseRepository.count({
+      where: { courseId },
+    });
+  }
+
+  async getActiveDisciplinesByCourse(courseId: number): Promise<DisciplineResponseDto[]> {
+    const course = await this.coursesRepository.findOne({
+      where: { id: courseId },
+    });
+
+    if (!course) {
+      throw new NotFoundException('Направление подготовки не найдено');
+    }
+
+    const disciplineCourses = await this.disciplineCourseRepository.find({
+      where: { courseId },
+      relations: [
+        'discipline', 
+        'discipline.courseLinks', 
+        'discipline.courseLinks.course', 
+        'discipline.createdBy'
+      ],
+    });
+
+    const activeDisciplines = disciplineCourses
+      .map(dc => dc.discipline)
+      .filter(d => d !== null && d.isActive === true);
+
+    return activeDisciplines.map(discipline => this.disciplineToResponseDto(discipline));
+  }
+
+  async getDisciplinesByYearOfStudy(
+    courseId: number, 
+    yearOfStudy: number
+  ): Promise<DisciplineResponseDto[]> {
+    const course = await this.coursesRepository.findOne({
+      where: { id: courseId },
+    });
+
+    if (!course) {
+      throw new NotFoundException('Направление подготовки не найдено');
+    }
+
+    const disciplineCourses = await this.disciplineCourseRepository.find({
+      where: { courseId },
+      relations: [
+        'discipline', 
+        'discipline.courseLinks', 
+        'discipline.courseLinks.course', 
+        'discipline.createdBy'
+      ],
+    });
+
+    const filteredDisciplines = disciplineCourses
+      .map(dc => dc.discipline)
+      .filter(d => d !== null && d.yearOfStudy === yearOfStudy && d.isActive === true);
+
+    return filteredDisciplines.map(discipline => this.disciplineToResponseDto(discipline));
+  }
+
+  async checkDisciplineInCourse(courseId: number, disciplineId: number): Promise<boolean> {
+    const link = await this.disciplineCourseRepository.findOne({
+      where: { courseId, disciplineId },
+    });
+    return !!link;
+  }
+
+  async getCoursesStats(): Promise<any> {
+    const courses = await this.coursesRepository.find({
+      where: { isActive: true },
+    });
+
+    const stats = await Promise.all(
+      courses.map(async (course) => {
+        const disciplineCourses = await this.disciplineCourseRepository.find({
+          where: { courseId: course.id },
+          relations: ['discipline'],
+        });
+
+        const disciplines = disciplineCourses.map(dc => dc.discipline).filter(d => d !== null);
+        
+        const totalDisciplines = disciplines.length;
+        const activeDisciplines = disciplines.filter(d => d.isActive).length;
+        
+        const distributionByYear: Record<number, number> = {};
+        disciplines.forEach(d => {
+          distributionByYear[d.yearOfStudy] = (distributionByYear[d.yearOfStudy] || 0) + 1;
+        });
+
+        return {
+          courseId: course.id,
+          courseName: course.name,
+          totalDisciplines,
+          activeDisciplines,
+          inactiveDisciplines: totalDisciplines - activeDisciplines,
+          distributionByYear,
+        };
+      })
+    );
+
+    return stats;
+  }
+
   private disciplineToResponseDto(discipline: Discipline): DisciplineResponseDto {
+    const courses = discipline.courseLinks
+      ?.map(link => link.course)
+      .filter(course => course !== null) || [];
+
     return {
       id: discipline.id,
       name: discipline.name,
@@ -162,16 +392,20 @@ export class CoursesService {
       year_of_study: discipline.yearOfStudy,
       is_active: discipline.isActive,
       created_by: discipline.createdBy?.id || null,
-      course: {
-        id: discipline.course.id,
-        name: discipline.course.name,
-        description: discipline.course.description,
-        is_active: discipline.course.isActive,
-        created_at: discipline.course.createdAt,
-        updated_at: discipline.course.updatedAt,
-      },
+      courses: courses.map(course => this.courseToResponseDto(course)),
       created_at: discipline.createdAt,
       updated_at: discipline.updatedAt,
+    };
+  }
+
+  private courseToResponseDto(course: Course): CourseResponseDto {
+    return {
+      id: course.id,
+      name: course.name,
+      description: course.description,
+      is_active: course.isActive,
+      created_at: course.createdAt,
+      updated_at: course.updatedAt,
     };
   }
 

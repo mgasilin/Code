@@ -1,5 +1,5 @@
-import { Controller, Get, Post, Put, Param, Query, Body, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery} from '@nestjs/swagger';
+import { Controller, Get, Post, Put, Delete, Param, Query, Body, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { DisciplinesService } from './disciplines.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -13,6 +13,7 @@ import { CreateDisciplineDto } from './dto/create-discipline';
 import { UpdateDisciplineDto } from './dto/update-discipline';
 import { LessonsResponseDto } from '../lessons/dto/lessons-response';
 import { LessonType } from '../entities/lesson.entity';
+import { AddCourseToDisciplineDto } from './dto/add-course-to-discipline.dto';
 
 @ApiTags('Disciplines')
 @ApiBearerAuth('BearerAuth')
@@ -38,12 +39,12 @@ export class DisciplinesController {
   @Post()
   @UseGuards(RolesGuard)
   @Roles(UserRole.TEACHER)
-  @ApiOperation({ summary: 'Создать дисциплину' })
+  @ApiOperation({ summary: 'Создать дисциплину с привязкой к направлениям подготовки' })
   @ApiResponse({ status: 201, type: DisciplineResponseDto, description: 'Дисциплина успешно создана' })
   @ApiResponse({ status: 400, description: 'Ошибка валидации' })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @ApiResponse({ status: 403, description: 'Доступ запрещен. Требуется роль teacher' })
-  @ApiResponse({ status: 404, description: 'Курс не найден' })
+  @ApiResponse({ status: 404, description: 'Одно или несколько направлений подготовки не найдены' })
   async create(
     @Body() createDisciplineDto: CreateDisciplineDto,
     @AuthUser() currentUser: any
@@ -99,5 +100,37 @@ export class DisciplinesController {
       lessonType,
       isActive,
     );
+  }
+
+  @Post(':id/courses')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.TEACHER)
+  @ApiOperation({ summary: 'Добавить направление подготовки к дисциплине' })
+  @ApiResponse({ status: 201, description: 'Направление успешно добавлено к дисциплине' })
+  @ApiResponse({ status: 400, description: 'Дисциплина уже привязана к этому направлению' })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  @ApiResponse({ status: 403, description: 'Доступ запрещен. Требуется роль teacher' })
+  @ApiResponse({ status: 404, description: 'Дисциплина или направление не найдены' })
+  async addCourseToDiscipline(
+    @Param('id') id: number,
+    @Body() dto: AddCourseToDisciplineDto,
+  ): Promise<void> {
+    return this.disciplinesService.addCourseToDiscipline(id, dto.course_id);
+  }
+
+  @Delete(':disciplineId/courses/:courseId')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.TEACHER)
+  @ApiOperation({ summary: 'Удалить направление подготовки из дисциплины' })
+  @ApiResponse({ status: 200, description: 'Направление успешно удалено из дисциплины' })
+  @ApiResponse({ status: 400, description: 'Дисциплина должна быть привязана хотя бы к одному направлению' })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  @ApiResponse({ status: 403, description: 'Доступ запрещен. Требуется роль teacher' })
+  @ApiResponse({ status: 404, description: 'Связь между дисциплиной и направлением не найдена' })
+  async removeCourseFromDiscipline(
+    @Param('disciplineId') disciplineId: number,
+    @Param('courseId') courseId: number,
+  ): Promise<void> {
+    return this.disciplinesService.removeCourseFromDiscipline(disciplineId, courseId);
   }
 }
